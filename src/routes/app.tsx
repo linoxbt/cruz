@@ -61,7 +61,7 @@ function ConnectPrompt({ onConnect }: { onConnect: () => void }) {
           <Wallet className="h-7 w-7" />
         </div>
         <div>
-          <h2 className="text-lg font-bold">Connect to see your unified balance</h2>
+          <h2 className="font-display text-lg font-bold">Connect to see your unified balance</h2>
           <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">
             Log in with Magic (email or social) and CRUZ shows your Universal Account&apos;s balance
             across every supported chain.
@@ -69,7 +69,7 @@ function ConnectPrompt({ onConnect }: { onConnect: () => void }) {
         </div>
         <button
           onClick={onConnect}
-          className="rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary-hover"
+          className="rounded-sm bg-primary px-5 py-2.5 font-mono text-sm font-medium text-primary-foreground hover:bg-primary-hover"
         >
           Log in with Magic
         </button>
@@ -108,10 +108,10 @@ function UnifiedBalanceCard({ address }: { address: `0x${string}` }) {
         ) : (
           <div>
             <div className="flex items-baseline gap-2">
-              <span className="text-4xl font-extrabold tracking-tight">
+              <span className="font-display text-4xl font-bold tracking-tight">
                 ${data.totalAmountInUSD.toFixed(2)}
               </span>
-              <span className="text-xs text-meta">across all chains</span>
+              <span className="font-mono text-xs text-meta">across all chains</span>
             </div>
             {data.assets.length > 0 ? (
               <div className="mt-5 grid gap-3 sm:grid-cols-2">
@@ -213,7 +213,9 @@ function QuickActions() {
   };
   return (
     <div>
-      <h3 className="mb-3 text-[11px] uppercase tracking-wider text-meta">Quick actions</h3>
+      <h3 className="mb-3 font-mono text-[11px] uppercase tracking-widest text-meta">
+        Quick actions
+      </h3>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {CRUZ_MODULES.map((m) => {
           const Icon = icons[m.id] ?? ScanSearch;
@@ -221,10 +223,10 @@ function QuickActions() {
             <Link
               key={m.id}
               to={m.path}
-              className="group rounded-lg border border-border bg-surface p-4 transition hover:border-primary/50 hover:bg-surface-2"
+              className="group rounded-sm border border-border bg-surface p-4 transition hover:border-primary/50 hover:bg-surface-2"
             >
               <Icon className="mb-2 h-5 w-5 text-primary" />
-              <div className="text-sm font-bold">{m.label}</div>
+              <div className="font-display text-sm font-bold">{m.label}</div>
               <div className="mt-1 text-[11px] text-meta">{m.description}</div>
             </Link>
           );

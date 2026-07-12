@@ -6,7 +6,7 @@ export function ExportCodePanel({ input }: { input: ComposerInput | null }) {
   if (!input) return null;
 
   return (
-    <div className="rounded border border-border bg-surface p-4">
+    <div className="rounded-sm border border-border bg-surface p-4">
       <div className="font-mono text-xs uppercase tracking-wider text-meta">
         Export — drop into a clean project
       </div>

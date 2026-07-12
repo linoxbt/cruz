@@ -81,7 +81,7 @@ export function ResultPanel({
 
   return (
     <div className="space-y-4">
-      <div className="rounded border border-border bg-surface p-4">
+      <div className="rounded-sm border border-border bg-surface p-4">
         <div className="font-mono text-xs uppercase tracking-wider text-meta">Generated files</div>
         <ul className="mt-2 space-y-0.5 font-mono text-xs text-muted-foreground">
           {Object.keys(files).map((f) => (
@@ -100,7 +100,7 @@ export function ResultPanel({
         </div>
       </div>
 
-      <div className="rounded border border-border bg-surface p-4">
+      <div className="rounded-sm border border-border bg-surface p-4">
         <div className="flex items-center gap-2 font-mono text-xs font-bold text-foreground">
           <Github className="h-4 w-4" /> Push to a new GitHub repo
         </div>
@@ -126,7 +126,7 @@ export function ResultPanel({
         </div>
       </div>
 
-      <div className="rounded border border-border bg-surface p-4">
+      <div className="rounded-sm border border-border bg-surface p-4">
         <div className="flex items-center gap-2 font-mono text-xs font-bold text-foreground">
           <Rocket className="h-4 w-4" /> Deploy to Vercel
         </div>

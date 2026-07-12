@@ -30,10 +30,10 @@ export function ConnectModal({ onClose }: { onClose: () => void }) {
         <div className="cruz-glow flex flex-col items-center gap-3 px-6 pb-5 pt-7 text-center">
           <LogoMark className="h-10 w-10" />
           <div>
-            <div className="text-lg font-bold tracking-tight text-foreground">
+            <div className="font-display text-lg font-bold tracking-tight text-foreground">
               CR<span className="text-primary">UZ</span>
             </div>
-            <div className="text-[11px] text-meta">One account, any chain</div>
+            <div className="font-mono text-[11px] text-meta">One account, any chain</div>
           </div>
           <button
             onClick={onClose}
@@ -75,7 +75,7 @@ export function ConnectModal({ onClose }: { onClose: () => void }) {
           <button
             onClick={connect}
             disabled={isPending}
-            className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition hover:bg-primary-hover disabled:opacity-50"
+            className="flex w-full items-center justify-center gap-2 rounded-sm bg-primary px-4 py-2.5 font-mono text-sm font-medium text-primary-foreground transition hover:bg-primary-hover disabled:opacity-50"
           >
             {isPending ? (
               <Loader2 className="h-4 w-4 animate-spin" />

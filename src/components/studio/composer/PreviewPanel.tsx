@@ -21,7 +21,7 @@ export function PreviewPanel({
 
   if (status === "previewing") {
     return (
-      <div className="flex items-center gap-2 rounded border border-border bg-surface p-4 font-mono text-xs text-muted-foreground">
+      <div className="flex items-center gap-2 rounded-sm border border-border bg-surface p-4 font-mono text-xs text-muted-foreground">
         <Loader2 className="h-3.5 w-3.5 animate-spin" /> Resolving routing…
       </div>
     );
@@ -29,7 +29,7 @@ export function PreviewPanel({
 
   if (status === "error" && error) {
     return (
-      <div className="rounded border border-destructive/40 bg-destructive/5 p-4 font-mono text-xs text-destructive">
+      <div className="rounded-sm border border-destructive/40 bg-destructive/5 p-4 font-mono text-xs text-destructive">
         {error}
       </div>
     );
@@ -38,7 +38,7 @@ export function PreviewPanel({
   if (!transaction) return null;
 
   return (
-    <div className="rounded border border-border bg-surface p-4">
+    <div className="rounded-sm border border-border bg-surface p-4">
       <div className="font-mono text-xs uppercase tracking-wider text-meta">
         Preview — no funds moved yet
       </div>
@@ -75,7 +75,7 @@ export function PreviewPanel({
       </details>
 
       {status === "done" && txId ? (
-        <div className="mt-4 rounded border border-success/40 bg-success/5 p-3 font-mono text-xs text-success">
+        <div className="mt-4 rounded-sm border border-success/40 bg-success/5 p-3 font-mono text-xs text-success">
           Executed — transaction {txId}
         </div>
       ) : (

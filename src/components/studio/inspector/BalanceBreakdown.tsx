@@ -7,7 +7,7 @@ export function BalanceBreakdown({ address }: { address: string | undefined }) {
 
   if (!isParticleConfigured()) {
     return (
-      <div className="rounded border border-border bg-surface p-4 font-mono text-xs text-muted-foreground">
+      <div className="rounded-sm border border-border bg-surface p-4 font-mono text-xs text-muted-foreground">
         Particle Network isn&apos;t configured — set{" "}
         <code className="text-foreground">VITE_PARTICLE_PROJECT_ID</code>,{" "}
         <code className="text-foreground">VITE_PARTICLE_CLIENT_KEY</code>, and{" "}
@@ -18,7 +18,7 @@ export function BalanceBreakdown({ address }: { address: string | undefined }) {
 
   if (!address) {
     return (
-      <div className="rounded border border-border bg-surface p-4 font-mono text-xs text-muted-foreground">
+      <div className="rounded-sm border border-border bg-surface p-4 font-mono text-xs text-muted-foreground">
         Paste an address or connect a wallet to inspect its unified balance.
       </div>
     );
@@ -26,7 +26,7 @@ export function BalanceBreakdown({ address }: { address: string | undefined }) {
 
   if (isLoading) {
     return (
-      <div className="flex items-center gap-2 rounded border border-border bg-surface p-4 font-mono text-xs text-muted-foreground">
+      <div className="flex items-center gap-2 rounded-sm border border-border bg-surface p-4 font-mono text-xs text-muted-foreground">
         <Loader2 className="h-3.5 w-3.5 animate-spin" /> Fetching unified balance…
       </div>
     );
@@ -34,14 +34,14 @@ export function BalanceBreakdown({ address }: { address: string | undefined }) {
 
   if (isError || !data) {
     return (
-      <div className="rounded border border-destructive/40 bg-destructive/5 p-4 font-mono text-xs text-destructive">
+      <div className="rounded-sm border border-destructive/40 bg-destructive/5 p-4 font-mono text-xs text-destructive">
         Couldn&apos;t fetch unified balance{error instanceof Error ? `: ${error.message}` : ""}.
       </div>
     );
   }
 
   return (
-    <div className="rounded border border-border bg-surface p-4">
+    <div className="rounded-sm border border-border bg-surface p-4">
       <div className="flex items-baseline justify-between">
         <span className="font-mono text-xs uppercase tracking-wider text-meta">
           Unified balance

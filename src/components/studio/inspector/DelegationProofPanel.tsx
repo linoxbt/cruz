@@ -10,7 +10,7 @@ export function DelegationProofPanel({ address }: { address: string | undefined 
 
   if (isLoading) {
     return (
-      <div className="flex items-center gap-2 rounded border border-border bg-surface p-4 font-mono text-xs text-muted-foreground">
+      <div className="flex items-center gap-2 rounded-sm border border-border bg-surface p-4 font-mono text-xs text-muted-foreground">
         <Loader2 className="h-3.5 w-3.5 animate-spin" /> Reading account code on Arbitrum One…
       </div>
     );
@@ -18,14 +18,14 @@ export function DelegationProofPanel({ address }: { address: string | undefined 
 
   if (isError || !data) {
     return (
-      <div className="rounded border border-destructive/40 bg-destructive/5 p-4 font-mono text-xs text-destructive">
+      <div className="rounded-sm border border-destructive/40 bg-destructive/5 p-4 font-mono text-xs text-destructive">
         Couldn&apos;t read the account&apos;s code from Arbitrum One.
       </div>
     );
   }
 
   return (
-    <div className="rounded border border-border bg-surface p-4">
+    <div className="rounded-sm border border-border bg-surface p-4">
       <div className="flex items-center gap-2">
         {data.isUpgraded ? (
           <ShieldCheck className="h-4 w-4 text-success" />

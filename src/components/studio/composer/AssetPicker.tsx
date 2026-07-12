@@ -62,7 +62,7 @@ export function AssetPicker({
   };
 
   return (
-    <div className="rounded border border-border bg-surface p-4">
+    <div className="rounded-sm border border-border bg-surface p-4">
       <Tabs value={mode} onValueChange={(v) => setMode(v as typeof mode)}>
         <TabsList>
           <TabsTrigger value="transfer">Send token</TabsTrigger>

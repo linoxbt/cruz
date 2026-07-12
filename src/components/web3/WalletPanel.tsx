@@ -33,7 +33,7 @@ export function WalletPanel() {
       <>
         <button
           onClick={() => setShowConnect(true)}
-          className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary-hover"
+          className="flex w-full items-center justify-center gap-1.5 rounded-sm bg-primary px-3 py-1.5 font-mono text-xs font-medium text-primary-foreground hover:bg-primary-hover"
         >
           <Wallet className="h-3.5 w-3.5" /> Connect Wallet
         </button>

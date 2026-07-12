@@ -38,7 +38,7 @@ export function PageHeader({
         {canShowBack && (
           <button
             onClick={goBack}
-            className="flex items-center gap-1 rounded border border-border px-2 py-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground transition hover:border-primary hover:text-primary"
+            className="flex items-center gap-1 rounded-sm border border-border px-2 py-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground transition hover:border-primary hover:text-primary"
             aria-label="Go back"
           >
             <ArrowLeft className="h-3 w-3" /> Back
@@ -52,7 +52,7 @@ export function PageHeader({
       </div>
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="font-mono text-xl font-bold text-foreground">{title}</h1>
+          <h1 className="font-display text-xl font-bold text-foreground">{title}</h1>
           {subtitle && <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>}
         </div>
         {action}

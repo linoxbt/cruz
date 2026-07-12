@@ -34,7 +34,7 @@ export function TerminalOutput({ lines, speedMs = 450, className, onDone, instan
   return (
     <div
       className={cn(
-        "rounded border border-border bg-background p-4 font-mono text-xs leading-relaxed",
+        "rounded-sm border border-border bg-background p-4 font-mono text-xs leading-relaxed",
         className,
       )}
     >

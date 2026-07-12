@@ -84,7 +84,7 @@ function EditorPage() {
       />
       <div className="grid gap-4 p-6 lg:grid-cols-2">
         <div
-          className="flex flex-col rounded border border-border bg-surface"
+          className="flex flex-col rounded-sm border border-border bg-surface"
           style={{ height: "70vh" }}
         >
           <div className="flex items-center justify-between border-b border-border px-3 py-2">
@@ -113,12 +113,12 @@ function EditorPage() {
 
         <div className="space-y-3">
           {!result && (
-            <div className="rounded border border-border bg-surface p-4 font-mono text-xs text-muted-foreground">
+            <div className="rounded-sm border border-border bg-surface p-4 font-mono text-xs text-muted-foreground">
               Compile to see results here.
             </div>
           )}
           {result && result.status === "success" && (
-            <div className="rounded border border-success/40 bg-success/5 p-4 font-mono text-xs text-success">
+            <div className="rounded-sm border border-success/40 bg-success/5 p-4 font-mono text-xs text-success">
               Compiled successfully in {result.timeMs}ms.
               {Object.keys(result.contracts).length > 0 && (
                 <ul className="mt-2 space-y-1">
@@ -132,7 +132,7 @@ function EditorPage() {
             </div>
           )}
           {result && result.errors.length > 0 && (
-            <div className="rounded border border-destructive/40 bg-destructive/5 p-4">
+            <div className="rounded-sm border border-destructive/40 bg-destructive/5 p-4">
               <div className="font-mono text-xs font-bold text-destructive">Errors</div>
               <div className="mt-2 space-y-2">
                 {result.errors.map((e, i) => (

@@ -39,7 +39,7 @@ export function InstallButton({ className }: { className?: string }) {
         setDeferred(null);
       }}
       className={cn(
-        "inline-flex items-center gap-1.5 rounded border border-primary px-3 py-1.5 font-mono text-xs text-primary hover:bg-primary/10",
+        "inline-flex items-center gap-1.5 rounded-sm border border-primary px-3 py-1.5 font-mono text-xs text-primary hover:bg-primary/10",
         className,
       )}
       title="Install CRUZ as an app"

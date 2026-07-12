@@ -11,7 +11,7 @@ export function ConfigForm({
   onChange: (config: ScaffoldConfig) => void;
 }) {
   return (
-    <div className="rounded border border-border bg-surface p-4 space-y-4">
+    <div className="rounded-sm border border-border bg-surface p-4 space-y-4">
       <div>
         <Label className="font-mono text-xs">Project name</Label>
         <Input

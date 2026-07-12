@@ -23,13 +23,13 @@ export function AppShell({ children }: { children: ReactNode }) {
         <header className="flex items-center gap-3 border-b border-border bg-surface px-4 py-2.5 md:hidden">
           <button
             onClick={openMobileNav}
-            className="rounded p-1 text-muted-foreground hover:text-foreground"
+            className="rounded-sm p-1 text-muted-foreground hover:text-foreground"
             aria-label="Open menu"
           >
             <PanelLeftOpen className="h-5 w-5" />
           </button>
           <LogoMark className="h-6 w-6" />
-          <span className="text-sm font-semibold tracking-tight text-foreground">
+          <span className="font-display text-sm font-bold tracking-tight text-foreground">
             CR<span className="text-primary">UZ</span>
           </span>
         </header>
@@ -38,7 +38,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         {collapsed && (
           <button
             onClick={toggleSidebar}
-            className="fixed left-2 top-2 z-50 hidden rounded-lg border border-border bg-surface p-1.5 text-muted-foreground shadow hover:text-foreground md:block"
+            className="fixed left-2 top-2 z-50 hidden rounded-sm border border-border bg-surface p-1.5 text-muted-foreground hover:text-foreground md:block"
             aria-label="Expand sidebar"
             title="Expand sidebar"
           >

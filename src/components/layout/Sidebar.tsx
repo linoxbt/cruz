@@ -42,13 +42,13 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
           onClick={onNavigate}
         >
           <LogoMark className="h-7 w-7" />
-          <span className="text-sm font-semibold tracking-tight text-foreground">
+          <span className="font-display text-sm font-bold tracking-tight text-foreground">
             CR<span className="text-primary">UZ</span>
           </span>
         </Link>
         <button
           onClick={onNavigate ?? toggleSidebar}
-          className="rounded p-1 text-meta hover:text-foreground"
+          className="rounded-sm p-1 text-meta hover:text-foreground"
           aria-label={onNavigate ? "Close menu" : "Collapse sidebar"}
           title={onNavigate ? "Close menu" : "Collapse sidebar"}
         >
@@ -61,6 +61,9 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       </div>
 
       <nav className="flex-1 overflow-y-auto px-2 py-3">
+        <p className="mb-2 px-2.5 font-mono text-[10px] uppercase tracking-widest text-meta">
+          CRUZ
+        </p>
         <div className="space-y-0.5">
           {NAV.map((item) => (
             <SidebarLink
@@ -130,7 +133,7 @@ function SidebarLink({
       to={to}
       onClick={onClick}
       className={cn(
-        "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium transition",
+        "flex items-center gap-2.5 rounded-sm px-2.5 py-2 text-xs font-medium transition",
         active
           ? "bg-primary/10 text-primary"
           : "text-muted-foreground hover:bg-surface-2 hover:text-foreground",

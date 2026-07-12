@@ -8,17 +8,26 @@
  * CRUZ Design System
  * Ink navy base + electric violet accent + cool mint + warm coral.
  * All tokens are semantic — use bg-background, text-primary, etc.
+ *
+ * Shape/type language follows Triacta: near-square corners, a mono-first
+ * label system, and flat (shadowless) surfaces. Only the color palette is
+ * CRUZ's own — see :root below.
  */
 
 @theme inline {
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 12px;
-  --radius-xl: 14px;
-  --radius-2xl: 18px;
+  --radius-sm: 2px;
+  --radius-md: 3px;
+  --radius-lg: 4px;
+  --radius-xl: 6px;
+  --radius-2xl: 8px;
 
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", "Space Mono", ui-monospace, SFMono-Regular, monospace;
+  --font-sans: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Space Mono", ui-monospace, SFMono-Regular, monospace;
+
+  --shadow-xs: 0 0 #0000;
+  --shadow-sm: 0 0 #0000;
+  --shadow: 0 0 #0000;
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -70,7 +79,7 @@
 }
 
 :root {
-  --radius: 10px;
+  --radius: 3px;
 
   /* Ink navy base — deeper and cooler than DevStation's terminal black. */
   --background: oklch(0.14 0.02 270);
@@ -218,6 +227,10 @@ html.light {
   font-family: var(--font-mono);
 }
 
+@utility font-display {
+  font-family: var(--font-display);
+}
+
 @utility text-code {
   color: var(--color-code);
   font-family: var(--font-mono);
@@ -244,6 +257,16 @@ html.light {
     circle at 50% 0%,
     color-mix(in oklab, var(--color-primary) 22%, transparent),
     transparent 70%
+  );
+}
+
+/* Contained, card-scoped accent wash — a corner bloom inside a bordered
+   surface rather than a page-wide glow. */
+@utility cruz-card-glow {
+  background: radial-gradient(
+    circle at 20% 20%,
+    color-mix(in oklab, var(--color-primary) 16%, transparent),
+    transparent 60%
   );
 }
 
