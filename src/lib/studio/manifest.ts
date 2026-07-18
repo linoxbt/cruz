@@ -1,6 +1,7 @@
 import {
   Bot,
   Code2,
+  FolderKanban,
   MessageSquareCode,
   PackagePlus,
   ScanSearch,
@@ -14,7 +15,7 @@ import {
 // exists so the landing page and sidebar render from one source, and so adding
 // a future module is "add an id + drop in a route file" with no refactor.
 export type CruzModuleId =
-  "inspector" | "composer" | "scaffolder" | "editor" | "codeAi" | "builder";
+  "inspector" | "composer" | "scaffolder" | "editor" | "codeAi" | "builder" | "projects";
 
 export interface CruzModuleDef {
   id: CruzModuleId;
@@ -64,6 +65,12 @@ export const CRUZ_MODULES: CruzModuleDef[] = [
     description:
       "Describe an app and an AI agent builds it — live file tree, diff review, and preview.",
   },
+  {
+    id: "projects",
+    label: "My Projects",
+    path: "/projects",
+    description: "Every app you've built in the AI Builder, in one place.",
+  },
 ];
 
 // One icon per module id, shared by the sidebar and the dashboard's quick
@@ -75,4 +82,5 @@ export const CRUZ_MODULE_ICONS: Record<CruzModuleId, LucideIcon> = {
   editor: Code2,
   codeAi: MessageSquareCode,
   builder: Bot,
+  projects: FolderKanban,
 };

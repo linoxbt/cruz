@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as ScaffolderRouteImport } from './routes/scaffolder'
+import { Route as ProjectsRouteImport } from './routes/projects'
 import { Route as InspectorRouteImport } from './routes/inspector'
 import { Route as EditorRouteImport } from './routes/editor'
 import { Route as ComposerRouteImport } from './routes/composer'
@@ -22,6 +23,11 @@ import { Route as ApiAiRouteImport } from './routes/api.ai'
 const ScaffolderRoute = ScaffolderRouteImport.update({
   id: '/scaffolder',
   path: '/scaffolder',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProjectsRoute = ProjectsRouteImport.update({
+  id: '/projects',
+  path: '/projects',
   getParentRoute: () => rootRouteImport,
 } as any)
 const InspectorRoute = InspectorRouteImport.update({
@@ -73,6 +79,7 @@ export interface FileRoutesByFullPath {
   '/composer': typeof ComposerRoute
   '/editor': typeof EditorRoute
   '/inspector': typeof InspectorRoute
+  '/projects': typeof ProjectsRoute
   '/scaffolder': typeof ScaffolderRoute
   '/api/ai': typeof ApiAiRoute
 }
@@ -84,6 +91,7 @@ export interface FileRoutesByTo {
   '/composer': typeof ComposerRoute
   '/editor': typeof EditorRoute
   '/inspector': typeof InspectorRoute
+  '/projects': typeof ProjectsRoute
   '/scaffolder': typeof ScaffolderRoute
   '/api/ai': typeof ApiAiRoute
 }
@@ -96,6 +104,7 @@ export interface FileRoutesById {
   '/composer': typeof ComposerRoute
   '/editor': typeof EditorRoute
   '/inspector': typeof InspectorRoute
+  '/projects': typeof ProjectsRoute
   '/scaffolder': typeof ScaffolderRoute
   '/api/ai': typeof ApiAiRoute
 }
@@ -109,6 +118,7 @@ export interface FileRouteTypes {
     | '/composer'
     | '/editor'
     | '/inspector'
+    | '/projects'
     | '/scaffolder'
     | '/api/ai'
   fileRoutesByTo: FileRoutesByTo
@@ -120,6 +130,7 @@ export interface FileRouteTypes {
     | '/composer'
     | '/editor'
     | '/inspector'
+    | '/projects'
     | '/scaffolder'
     | '/api/ai'
   id:
@@ -131,6 +142,7 @@ export interface FileRouteTypes {
     | '/composer'
     | '/editor'
     | '/inspector'
+    | '/projects'
     | '/scaffolder'
     | '/api/ai'
   fileRoutesById: FileRoutesById
@@ -143,6 +155,7 @@ export interface RootRouteChildren {
   ComposerRoute: typeof ComposerRoute
   EditorRoute: typeof EditorRoute
   InspectorRoute: typeof InspectorRoute
+  ProjectsRoute: typeof ProjectsRoute
   ScaffolderRoute: typeof ScaffolderRoute
   ApiAiRoute: typeof ApiAiRoute
 }
@@ -154,6 +167,13 @@ declare module '@tanstack/react-router' {
       path: '/scaffolder'
       fullPath: '/scaffolder'
       preLoaderRoute: typeof ScaffolderRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/projects': {
+      id: '/projects'
+      path: '/projects'
+      fullPath: '/projects'
+      preLoaderRoute: typeof ProjectsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/inspector': {
@@ -223,6 +243,7 @@ const rootRouteChildren: RootRouteChildren = {
   ComposerRoute: ComposerRoute,
   EditorRoute: EditorRoute,
   InspectorRoute: InspectorRoute,
+  ProjectsRoute: ProjectsRoute,
   ScaffolderRoute: ScaffolderRoute,
   ApiAiRoute: ApiAiRoute,
 }

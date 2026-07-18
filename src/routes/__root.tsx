@@ -13,7 +13,6 @@ import appCss from "../styles.css?url";
 import { AppShell } from "@/components/layout/AppShell";
 import { Web3Provider } from "@/components/web3/Web3Provider";
 import { Toaster } from "@/components/ui/sonner";
-import { SplashScreen } from "@/components/pwa/SplashScreen";
 import { useTheme } from "@/lib/theme";
 
 function NotFoundComponent() {
@@ -166,7 +165,6 @@ function RootComponent() {
           </AppShell>
         )}
         <Toaster />
-        <SplashScreen />
       </Web3Provider>
     </QueryClientProvider>
   );

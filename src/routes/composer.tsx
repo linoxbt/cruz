@@ -1,9 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useTxComposer } from "@/hooks/useTxComposer";
+import { useState } from "react";
+import { useTxComposer, type ComposerInput } from "@/hooks/useTxComposer";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { AssetPicker } from "@/components/studio/composer/AssetPicker";
 import { PreviewPanel } from "@/components/studio/composer/PreviewPanel";
 import { ExportCodePanel } from "@/components/studio/composer/ExportCodePanel";
+import { RecentTransactions } from "@/components/studio/composer/RecentTransactions";
 
 export const Route = createFileRoute("/composer")({
   head: () => ({ meta: [{ title: "Transaction Composer — CRUZ" }] }),
@@ -14,6 +16,13 @@ function ComposerPage() {
   const { status, error, transaction, lastInput, txId, canCompose, preview, execute } =
     useTxComposer();
   const busy = status === "previewing" || status === "executing";
+
+  // "Load" from RecentTransactions feeds a past input back into AssetPicker.
+  // Bumping `nonce` on every load (not just changing `input`) means clicking
+  // the same history entry twice still re-applies it.
+  const [prefill, setPrefill] = useState<{ input: ComposerInput; nonce: number } | null>(null);
+  const loadFromHistory = (input: ComposerInput) =>
+    setPrefill((p) => ({ input, nonce: (p?.nonce ?? 0) + 1 }));
 
   return (
     <div>
@@ -33,7 +42,12 @@ function ComposerPage() {
 
         <div className="grid gap-4 lg:grid-cols-2">
           <div className="space-y-4">
-            <AssetPicker busy={busy} disabled={!canCompose} onCompose={preview} />
+            <AssetPicker
+              busy={busy}
+              disabled={!canCompose}
+              onCompose={preview}
+              prefill={prefill ?? undefined}
+            />
             <ExportCodePanel input={lastInput} />
           </div>
           <PreviewPanel
@@ -44,6 +58,8 @@ function ComposerPage() {
             onExecute={execute}
           />
         </div>
+
+        <RecentTransactions onLoad={loadFromHistory} />
       </div>
     </div>
   );

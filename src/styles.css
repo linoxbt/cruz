@@ -270,64 +270,10 @@ html.light {
   );
 }
 
-/* Animated crossing-arcs on the hero — the two arcs draw in, then the node
-   pulses. Motion tied to the "cross-chain traversal" idea CRUZ is about. */
-@keyframes cruz-arc-draw {
-  from {
-    stroke-dashoffset: 600;
-  }
-  to {
-    stroke-dashoffset: 0;
-  }
-}
-.cruz-arc-1,
-.cruz-arc-2 {
-  stroke-dasharray: 600;
-  stroke-dashoffset: 600;
-  animation: cruz-arc-draw 2.4s ease-out forwards;
-}
-.cruz-arc-2 {
-  animation-delay: 0.4s;
-}
-@keyframes cruz-arc-pulse {
-  0%,
-  100% {
-    transform: scale(1);
-    opacity: 1;
-  }
-  50% {
-    transform: scale(2.2);
-    opacity: 0.4;
-  }
-}
-.cruz-arc-pulse {
-  transform-origin: center;
-  transform-box: fill-box;
-  animation: cruz-arc-pulse 2.6s ease-in-out infinite;
-  animation-delay: 2.4s;
-}
-
-/* Chain marquee on the landing page. */
-@keyframes cruz-marquee {
-  from {
-    transform: translateX(0);
-  }
-  to {
-    transform: translateX(-33.333%);
-  }
-}
-.cruz-marquee-track {
-  animation: cruz-marquee 28s linear infinite;
-}
 @media (prefers-reduced-motion: reduce) {
-  .cruz-arc-1,
-  .cruz-arc-2,
-  .cruz-arc-pulse,
-  .cruz-marquee-track {
-    animation: none;
-  }
-  .cruz-arc-1,
-  .cruz-arc-2 {
-    stroke-dashoffset: 0;
+  .cruz-reveal {
+    transition: none !important;
+    opacity: 1 !important;
+    transform: none !important;
   }
 }

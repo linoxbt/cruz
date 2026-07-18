@@ -1,13 +1,15 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useAccount } from "wagmi";
-import { Loader2, ArrowRight, Wallet } from "lucide-react";
+import { Loader2, ArrowRight, LogIn } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ConnectModal } from "@/components/web3/ConnectModal";
 import { useUniversalAccount } from "@/hooks/useUniversalAccount";
 import { useDelegationStatus } from "@/hooks/useDelegationStatus";
+import { useGasPrice } from "@/hooks/useGasPrice";
 import { isParticleConfigured } from "@/lib/studio/particle";
 import { truncateAddress } from "@/lib/wallet";
+import { arbitrumOne } from "@/lib/chains";
 import { CRUZ_MODULES, CRUZ_MODULE_ICONS } from "@/lib/studio/manifest";
 import { useState } from "react";
 
@@ -27,43 +29,74 @@ function AppDashboard() {
         title="Universal Account"
         subtitle="Your connected wallet's unified cross-chain balance and upgrade status."
       />
-      <div className="p-6">
+      <div className="space-y-6 p-6">
+        <AppStats connected={isConnected} />
         {!isConnected || !address ? (
-          <ConnectPrompt onConnect={() => setShowConnect(true)} />
+          <LoginBanner onConnect={() => setShowConnect(true)} />
         ) : (
-          <div className="space-y-6">
+          <>
             <UnifiedBalanceCard address={address} />
             <DelegationCard address={address} />
-            <QuickActions />
-          </div>
+          </>
         )}
+        <QuickActions />
       </div>
       {showConnect && <ConnectModal onClose={() => setShowConnect(false)} />}
     </div>
   );
 }
 
-/* ─────────── Connect prompt ─────────── */
+/* ─────────── App stats — always visible, no wallet required ─────────── */
 
-function ConnectPrompt({ onConnect }: { onConnect: () => void }) {
+function AppStats({ connected }: { connected: boolean }) {
+  const { data: gasGwei } = useGasPrice();
+
+  const stats = [
+    { label: "Chain", value: arbitrumOne.name },
+    { label: "Modules", value: String(CRUZ_MODULES.length) },
+    { label: "Gas price", value: gasGwei !== undefined ? `${gasGwei.toFixed(3)} gwei` : "…" },
+    { label: "Status", value: connected ? "Connected" : "Not connected" },
+  ];
+
+  return (
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      {stats.map((s) => (
+        <Card key={s.label}>
+          <CardContent className="p-4">
+            <div className="font-mono text-[10px] uppercase tracking-wider text-meta">
+              {s.label}
+            </div>
+            <div className="mt-1 font-display text-lg font-bold text-foreground">{s.value}</div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
+/* ─────────── Login banner (replaces the balance/delegation cards only) ─────────── */
+
+function LoginBanner({ onConnect }: { onConnect: () => void }) {
   return (
     <Card className="cruz-glow border-border">
-      <CardContent className="flex flex-col items-center gap-4 px-6 py-16 text-center">
-        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-primary">
-          <Wallet className="h-7 w-7" />
-        </div>
-        <div>
-          <h2 className="font-display text-lg font-bold">Connect to see your unified balance</h2>
-          <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">
-            Log in with Magic (email or social) and CRUZ shows your Universal Account&apos;s balance
-            across every supported chain.
-          </p>
+      <CardContent className="flex flex-col items-center gap-3 px-6 py-10 text-center sm:flex-row sm:justify-between sm:text-left">
+        <div className="flex items-center gap-3">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+            <LogIn className="h-5 w-5" />
+          </div>
+          <div>
+            <h2 className="font-display text-base font-bold">Log in to see your balance</h2>
+            <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+              Email + OTP via Magic — CRUZ shows your Universal Account&apos;s balance across every
+              supported chain.
+            </p>
+          </div>
         </div>
         <button
           onClick={onConnect}
-          className="rounded-sm bg-primary px-5 py-2.5 font-mono text-sm font-medium text-primary-foreground hover:bg-primary-hover"
+          className="shrink-0 rounded-sm bg-primary px-5 py-2.5 font-mono text-sm font-medium text-primary-foreground hover:bg-primary-hover"
         >
-          Log in with Magic
+          Log in
         </button>
       </CardContent>
     </Card>

@@ -5,6 +5,7 @@ import { getUniversalAccount } from "@/lib/studio/particle";
 import { signAndSendWithMagic, useMagic, useMagicAddress } from "@/lib/studio/magicSigner";
 import { arbitrumOne } from "@/lib/chains";
 import { parseArgs } from "@/lib/abiArgParser";
+import { useComposerHistory } from "@/lib/studio/composerHistory";
 
 export interface TransferInput {
   mode: "transfer";
@@ -13,8 +14,10 @@ export interface TransferInput {
   receiver: `0x${string}`;
 }
 
-export interface ContractCallInput {
-  mode: "contract-call";
+/** One contract call — the shape both the single "contract-call" mode and
+ *  each entry of "batch" mode share, so the batch tab can reuse the exact
+ *  same per-call fields/parsing as the single-call tab. */
+export interface ContractCall {
   targetAddress: `0x${string}`;
   /** Native ETH value to send with the call, as a plain decimal string (e.g. "0.01"). */
   value: string;
@@ -24,11 +27,23 @@ export interface ContractCallInput {
   argValues: Record<string, string>;
 }
 
-export type ComposerInput = TransferInput | ContractCallInput;
+export interface ContractCallInput extends ContractCall {
+  mode: "contract-call";
+}
+
+/** Multiple calls routed and signed as ONE Universal Transaction — the
+ *  Particle SDK's createUniversalTransaction already accepts an array of
+ *  calls; this just exposes that as its own composer mode. */
+export interface BatchInput {
+  mode: "batch";
+  calls: ContractCall[];
+}
+
+export type ComposerInput = TransferInput | ContractCallInput | BatchInput;
 
 export type ComposerStatus = "idle" | "previewing" | "ready" | "executing" | "done" | "error";
 
-function buildContractCallData(input: ContractCallInput) {
+function buildContractCallData(input: ContractCall) {
   // parseAbi's type-level parser only validates literal signature strings; a
   // runtime string (user input) can't be inferred at the type level, so we
   // cast — the runtime parser handles any valid signature regardless.
@@ -82,17 +97,27 @@ export function useTxComposer() {
               amount: input.amount,
               receiver: input.receiver,
             })
-          : await ua.createUniversalTransaction({
-              chainId: arbitrumOne.id,
-              expectTokens: [],
-              transactions: [
-                {
-                  to: input.targetAddress,
-                  data: buildContractCallData(input),
-                  value: parseEther(input.value || "0").toString(),
-                },
-              ],
-            });
+          : input.mode === "batch"
+            ? await ua.createUniversalTransaction({
+                chainId: arbitrumOne.id,
+                expectTokens: [],
+                transactions: input.calls.map((c) => ({
+                  to: c.targetAddress,
+                  data: buildContractCallData(c),
+                  value: parseEther(c.value || "0").toString(),
+                })),
+              })
+            : await ua.createUniversalTransaction({
+                chainId: arbitrumOne.id,
+                expectTokens: [],
+                transactions: [
+                  {
+                    to: input.targetAddress,
+                    data: buildContractCallData(input),
+                    value: parseEther(input.value || "0").toString(),
+                  },
+                ],
+              });
 
       setTransaction(tx);
       setStatus("ready");
@@ -113,7 +138,9 @@ export function useTxComposer() {
       setStatus("executing");
       const ua = getUniversalAccount(address);
       const result = await signAndSendWithMagic(ua, transaction, address);
-      setTxId((result?.transactionId as string | undefined) ?? transaction.transactionId);
+      const id = (result?.transactionId as string | undefined) ?? transaction.transactionId;
+      setTxId(id);
+      if (lastInput) useComposerHistory.getState().add(lastInput, id);
       setStatus("done");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Execution failed");
