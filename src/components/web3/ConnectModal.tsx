@@ -1,17 +1,11 @@
 import { ArrowRight, Loader2, Mail, X } from "lucide-react";
 import { useConnect } from "wagmi";
-import { Badge } from "@/components/ui/badge";
 import { LogoMark } from "@/components/shared/Logo";
 import { isMagicConfigured } from "@/lib/wagmi";
 
-// CRUZ logs in with Magic only. Email is the one live method right now;
-// Magic's OAuth socials (Google/Apple/GitHub/Discord/X/Twitch) are shown
-// but disabled — genuinely not wired up (see wagmi.ts, which omits
-// oauthOptions so Magic's own hosted modal only offers email either), not
-// decorative buttons pretending to work. When a provider goes live, flip it
-// out of DISABLED_PROVIDERS and add it back to wagmi.ts's oauthOptions.
-const DISABLED_PROVIDERS = ["Google", "Apple", "GitHub", "Discord", "X", "Twitch"] as const;
-
+// CRUZ logs in with Magic only, email login. Magic's OAuth socials aren't
+// wired up (see wagmi.ts, which omits oauthOptions so Magic's own hosted
+// modal only offers email too) and aren't listed here either.
 export function ConnectModal({ onClose }: { onClose: () => void }) {
   const { connectors, connectAsync, isPending, error } = useConnect();
   const magic = connectors[0];
@@ -58,34 +52,19 @@ export function ConnectModal({ onClose }: { onClose: () => void }) {
             </div>
           ) : null}
 
-          <div className="space-y-2">
-            <button
-              onClick={connect}
-              disabled={isPending || !magic}
-              className="flex w-full items-center justify-center gap-2 rounded-sm bg-primary px-4 py-2.5 font-mono text-sm font-medium text-primary-foreground transition hover:bg-primary-hover disabled:opacity-50"
-            >
-              {isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <>
-                  <Mail className="h-4 w-4" /> Continue with email{" "}
-                  <ArrowRight className="h-4 w-4" />
-                </>
-              )}
-            </button>
-
-            {DISABLED_PROVIDERS.map((name) => (
-              <div
-                key={name}
-                className="flex w-full items-center justify-between rounded-sm border border-border px-4 py-2.5 font-mono text-sm text-muted-foreground opacity-60"
-              >
-                <span>Continue with {name}</span>
-                <Badge variant="outline" className="font-mono text-[10px]">
-                  Coming soon
-                </Badge>
-              </div>
-            ))}
-          </div>
+          <button
+            onClick={connect}
+            disabled={isPending || !magic}
+            className="flex w-full items-center justify-center gap-2 rounded-sm bg-primary px-4 py-2.5 font-mono text-sm font-medium text-primary-foreground transition hover:bg-primary-hover disabled:opacity-50"
+          >
+            {isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <>
+                <Mail className="h-4 w-4" /> Continue with email <ArrowRight className="h-4 w-4" />
+              </>
+            )}
+          </button>
 
           {error && (
             <p className="rounded-md border border-danger/40 bg-danger/5 p-2 text-[11px] text-danger">
