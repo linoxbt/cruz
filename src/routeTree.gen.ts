@@ -13,6 +13,7 @@ import { Route as ScaffolderRouteImport } from './routes/scaffolder'
 import { Route as InspectorRouteImport } from './routes/inspector'
 import { Route as EditorRouteImport } from './routes/editor'
 import { Route as ComposerRouteImport } from './routes/composer'
+import { Route as CodeAiRouteImport } from './routes/code-ai'
 import { Route as BuilderRouteImport } from './routes/builder'
 import { Route as AppRouteImport } from './routes/app'
 import { Route as IndexRouteImport } from './routes/index'
@@ -36,6 +37,11 @@ const EditorRoute = EditorRouteImport.update({
 const ComposerRoute = ComposerRouteImport.update({
   id: '/composer',
   path: '/composer',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CodeAiRoute = CodeAiRouteImport.update({
+  id: '/code-ai',
+  path: '/code-ai',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BuilderRoute = BuilderRouteImport.update({
@@ -63,6 +69,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/app': typeof AppRoute
   '/builder': typeof BuilderRoute
+  '/code-ai': typeof CodeAiRoute
   '/composer': typeof ComposerRoute
   '/editor': typeof EditorRoute
   '/inspector': typeof InspectorRoute
@@ -73,6 +80,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/app': typeof AppRoute
   '/builder': typeof BuilderRoute
+  '/code-ai': typeof CodeAiRoute
   '/composer': typeof ComposerRoute
   '/editor': typeof EditorRoute
   '/inspector': typeof InspectorRoute
@@ -84,6 +92,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/app': typeof AppRoute
   '/builder': typeof BuilderRoute
+  '/code-ai': typeof CodeAiRoute
   '/composer': typeof ComposerRoute
   '/editor': typeof EditorRoute
   '/inspector': typeof InspectorRoute
@@ -96,6 +105,7 @@ export interface FileRouteTypes {
     | '/'
     | '/app'
     | '/builder'
+    | '/code-ai'
     | '/composer'
     | '/editor'
     | '/inspector'
@@ -106,6 +116,7 @@ export interface FileRouteTypes {
     | '/'
     | '/app'
     | '/builder'
+    | '/code-ai'
     | '/composer'
     | '/editor'
     | '/inspector'
@@ -116,6 +127,7 @@ export interface FileRouteTypes {
     | '/'
     | '/app'
     | '/builder'
+    | '/code-ai'
     | '/composer'
     | '/editor'
     | '/inspector'
@@ -127,6 +139,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRoute
   BuilderRoute: typeof BuilderRoute
+  CodeAiRoute: typeof CodeAiRoute
   ComposerRoute: typeof ComposerRoute
   EditorRoute: typeof EditorRoute
   InspectorRoute: typeof InspectorRoute
@@ -164,6 +177,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ComposerRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/code-ai': {
+      id: '/code-ai'
+      path: '/code-ai'
+      fullPath: '/code-ai'
+      preLoaderRoute: typeof CodeAiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/builder': {
       id: '/builder'
       path: '/builder'
@@ -199,6 +219,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRoute,
   BuilderRoute: BuilderRoute,
+  CodeAiRoute: CodeAiRoute,
   ComposerRoute: ComposerRoute,
   EditorRoute: EditorRoute,
   InspectorRoute: InspectorRoute,
