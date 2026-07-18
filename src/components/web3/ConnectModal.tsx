@@ -1,20 +1,17 @@
-import { ArrowRight, Loader2, X } from "lucide-react";
+import { ArrowRight, Loader2, Mail, X } from "lucide-react";
 import { useConnect } from "wagmi";
+import { Badge } from "@/components/ui/badge";
 import { LogoMark } from "@/components/shared/Logo";
 import { isMagicConfigured } from "@/lib/wagmi";
 
-// CRUZ logs in with Magic only — passwordless email + OAuth social. Magic
-// mints an EVM embedded wallet that Particle's Universal Accounts then
-// aggregates. No injected/MetaMask, no burner.
-//
-// @magiclabs/wagmi-connector's connect() takes no email/provider argument —
-// it always opens the connector's own modal (dedicatedWalletConnector.js's
-// getUserDetailsByForm), which collects the email or OAuth choice itself
-// (configured via wagmi.ts's oauthOptions.providers). A previous version of
-// this modal rendered its own email input + six branded provider buttons in
-// front of that — none of it was wired to connect(), so every button (and
-// the email field) did the exact same thing: open Magic's modal. This is a
-// single, honest CTA into that modal instead of a decorative duplicate.
+// CRUZ logs in with Magic only. Email is the one live method right now;
+// Magic's OAuth socials (Google/Apple/GitHub/Discord/X/Twitch) are shown
+// but disabled — genuinely not wired up (see wagmi.ts, which omits
+// oauthOptions so Magic's own hosted modal only offers email either), not
+// decorative buttons pretending to work. When a provider goes live, flip it
+// out of DISABLED_PROVIDERS and add it back to wagmi.ts's oauthOptions.
+const DISABLED_PROVIDERS = ["Google", "Apple", "GitHub", "Discord", "X", "Twitch"] as const;
+
 export function ConnectModal({ onClose }: { onClose: () => void }) {
   const { connectors, connectAsync, isPending, error } = useConnect();
   const magic = connectors[0];
@@ -61,11 +58,7 @@ export function ConnectModal({ onClose }: { onClose: () => void }) {
             </div>
           ) : null}
 
-          <div>
-            <p className="mb-3 text-center text-[11px] text-muted-foreground">
-              Continue with email, Google, Apple, GitHub, Discord, X, or Twitch — Magic will ask
-              which one next.
-            </p>
+          <div className="space-y-2">
             <button
               onClick={connect}
               disabled={isPending || !magic}
@@ -75,10 +68,23 @@ export function ConnectModal({ onClose }: { onClose: () => void }) {
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <>
-                  Continue <ArrowRight className="h-4 w-4" />
+                  <Mail className="h-4 w-4" /> Continue with email{" "}
+                  <ArrowRight className="h-4 w-4" />
                 </>
               )}
             </button>
+
+            {DISABLED_PROVIDERS.map((name) => (
+              <div
+                key={name}
+                className="flex w-full items-center justify-between rounded-sm border border-border px-4 py-2.5 font-mono text-sm text-muted-foreground opacity-60"
+              >
+                <span>Continue with {name}</span>
+                <Badge variant="outline" className="font-mono text-[10px]">
+                  Coming soon
+                </Badge>
+              </div>
+            ))}
           </div>
 
           {error && (

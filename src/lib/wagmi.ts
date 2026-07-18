@@ -25,9 +25,11 @@ if (MAGIC_PUBLISHABLE_KEY) {
       options: {
         apiKey: MAGIC_PUBLISHABLE_KEY,
         isDarkMode: true,
-        oauthOptions: {
-          providers: ["google", "apple", "github", "discord", "twitter", "twitch"],
-        },
+        // Only email is live for now — the other providers are shown in
+        // ConnectModal.tsx as "coming soon". Omitting oauthOptions (its
+        // `providers` defaults to `[]` inside the connector) means Magic's
+        // own hosted modal offers email only too, so there's no way to
+        // reach a social login through it either.
         magicSdkConfiguration: {
           network: {
             rpcUrl: arbitrumOne.rpcUrls.default.http[0],
