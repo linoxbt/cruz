@@ -1,14 +1,21 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  AlertTriangle,
   Code2,
   FilePlus,
   FolderPlus,
   Folder,
   FolderInput,
   GripHorizontal,
+  GripVertical,
+  Info,
   Play,
+  Rocket,
+  ShieldCheck,
+  Sparkles,
   Upload,
+  Wrench,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -17,17 +24,35 @@ import { ClientOnly } from "@/components/shared/ClientOnly";
 import { SolidityEditor } from "@/components/editor/SolidityEditor";
 import { EditorTerminal } from "@/components/editor/EditorTerminal";
 import { FileTree } from "@/components/editor/FileTree";
+import { AiChat } from "@/components/editor/AiChat";
+import { DeployContractPanel } from "@/components/studio/builder/DeployContractPanel";
 import { useWorkspace } from "@/hooks/useWorkspace";
-import { compile, type CompileOutput, type CompileError, SOLC_VERSIONS, DEFAULT_SOLC_VERSION } from "@/lib/compiler";
+import {
+  compile,
+  type CompileOutput,
+  type CompileError,
+  SOLC_VERSIONS,
+  DEFAULT_SOLC_VERSION,
+} from "@/lib/compiler";
+import {
+  runStaticAnalysis,
+  STATIC_ANALYSIS_CHECK_COUNT,
+  type AnalysisFinding,
+} from "@/lib/staticAnalysis";
 import { useEditorIntake } from "@/lib/editor-intake";
+import { useAiIntake } from "@/lib/ai-intake";
+import { diffLines, diffStats } from "@/lib/diff";
+import { cn } from "@/lib/utils";
 import type { TerminalLine } from "@/components/shared/TerminalOutput";
 
 // CRUZ contract editor. Reuses the generic SolidityEditor component and
-// compiler.ts's compile() (both mode-agnostic, unchanged by this workspace
-// port — compiler.ts already accepts a multi-file sources map, this route
-// just now feeds it one). Edit + compile only, no deploy step — CRUZ doesn't
-// ship a full deploy pipeline, just a way to review the demo/generated
-// contracts the Scaffolder produces.
+// compiler.ts's compile() (both mode-agnostic). Ported feature-for-feature
+// from the sibling DevStation project: Deploy (via CRUZ's own
+// DeployContractPanel — Magic wallet or an opt-in generated wallet, not
+// DevStation's chain-generic panel), a Terminal/Inspector tab pair below the
+// editor (static analysis findings), and a "Code with AI" panel for
+// writing/debugging/explaining a single contract (distinct from the AI
+// Builder, which generates whole projects).
 export const Route = createFileRoute("/editor")({
   head: () => ({ meta: [{ title: "Contract Editor — CRUZ" }] }),
   component: EditorPage,
@@ -37,12 +62,14 @@ function EditorPage() {
   const ws = useWorkspace();
 
   // One-shot: pick up a pending "Open in Editor" hand-off (e.g. the
-  // Scaffolder's demo contract) if present.
+  // Scaffolder's demo contract, or a code block from the AI panel).
   const consumeIntake = useEditorIntake((s) => s.consume);
   useEffect(() => {
     const pending = consumeIntake();
     if (pending) {
-      const path = pending.filename.includes("/") ? pending.filename : `contracts/${pending.filename}`;
+      const path = pending.filename.includes("/")
+        ? pending.filename
+        : `contracts/${pending.filename}`;
       ws.setContent(path, pending.content);
       ws.openFile(path);
     }
@@ -56,12 +83,26 @@ function EditorPage() {
   const [terminalHeight, setTerminalHeight] = useState(220);
   const [terminalCollapsed, setTerminalCollapsed] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [deployOpen, setDeployOpen] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
+  const [aiWidth, setAiWidth] = useState(340);
+  const [pendingApply, setPendingApply] = useState<string | null>(null);
+  const [findings, setFindings] = useState<AnalysisFinding[]>([]);
+  const [bottomTab, setBottomTab] = useState<"terminal" | "inspector">("terminal");
+  const [gotoLine, setGotoLine] = useState<{ line: number; nonce: number }>();
+  const jumpToLine = (line?: number) => {
+    if (line) setGotoLine({ line, nonce: Date.now() });
+  };
   const [lines, setLines] = useState<TerminalLine[]>(() => [
     { text: "[CRUZ] Editor ready.", status: "success" },
-    { text: "[CRUZ] Open a .sol file to edit. Auto-compile runs 800ms after you stop typing.", status: "pending" },
+    {
+      text: "[CRUZ] Open a .sol file to edit. Auto-compile runs 800ms after you stop typing.",
+      status: "pending",
+    },
   ]);
 
   const dragRef = useRef<number | null>(null);
+  const aiDragRef = useRef<number | null>(null);
   const activeSol = ws.activePath.endsWith(".sol") ? ws.activeContent : "";
 
   function logT(line: TerminalLine) {
@@ -74,7 +115,10 @@ function EditorPage() {
       if (!src.trim()) return;
       setCompiling(true);
       const ts = new Date().toLocaleTimeString();
-      logT({ text: `[${ts}] [Compiler] Compiling ${ws.activePath} with solc ${version}...`, status: "pending" });
+      logT({
+        text: `[${ts}] [Compiler] Compiling ${ws.activePath} with solc ${version}...`,
+        status: "pending",
+      });
       try {
         const sources: Record<string, string> = {};
         for (const f of ws.solFiles) sources[f.path] = f.content;
@@ -88,7 +132,10 @@ function EditorPage() {
         setLastResult(result);
 
         for (const imp of result.resolvedImports) {
-          logT({ text: `[${ts}] [Compiler] ✓ Resolved ${imp.path} via CDN (OpenZeppelin v5.0.2)`, status: "success" });
+          logT({
+            text: `[${ts}] [Compiler] ✓ Resolved ${imp.path} via CDN (OpenZeppelin v5.0.2)`,
+            status: "success",
+          });
         }
         for (const bad of result.importErrors) {
           logT({ text: `[${ts}] [Error] Failed to resolve import: ${bad}`, status: "error" });
@@ -102,6 +149,7 @@ function EditorPage() {
           for (const err of result.errors) {
             logT({ text: `[${ts}] [Error] ${err.formattedMessage}`, status: "error" });
           }
+          setFindings([]); // static analysis only runs after a successful compile
         } else {
           const count = Object.keys(result.contracts).length;
           logT({
@@ -111,9 +159,35 @@ function EditorPage() {
           for (const w of result.warnings) {
             logT({ text: `[${ts}] [Warning] ${w.formattedMessage}`, status: "warning" });
           }
+
+          // ── Static analysis (Inspector) — runs after a successful compile ──
+          const found = runStaticAnalysis(src, ws.activePath);
+          setFindings(found);
+          logT({
+            text: `[${ts}] [Inspector] Running static analysis — ${STATIC_ANALYSIS_CHECK_COUNT} checks...`,
+            status: "pending",
+          });
+          if (found.length === 0) {
+            logT({
+              text: `[${ts}] [Inspector] ✓ Static analysis complete — ${STATIC_ANALYSIS_CHECK_COUNT} checks passed`,
+              status: "success",
+            });
+          } else {
+            for (const f of found) {
+              const icon = f.severity === "error" ? "✗" : f.severity === "warning" ? "⚠" : "ℹ";
+              const status =
+                f.severity === "error" ? "error" : f.severity === "warning" ? "warning" : "info";
+              const loc = f.line ? ` (line ${f.line})` : "";
+              logT({ text: `[${ts}] [Inspector] ${icon}  [${f.code}] ${f.title}${loc}`, status });
+              logT({ text: `[${ts}] [Inspector]    ${f.description}`, status: "info" });
+            }
+          }
         }
       } catch (err) {
-        logT({ text: `[${ts}] [Error] ${err instanceof Error ? err.message : "Compilation failed"}`, status: "error" });
+        logT({
+          text: `[${ts}] [Error] ${err instanceof Error ? err.message : "Compilation failed"}`,
+          status: "error",
+        });
       } finally {
         setCompiling(false);
       }
@@ -153,11 +227,27 @@ function EditorPage() {
   const resetTermHeight = () => setTerminalHeight(220);
   const clearTerminal = () => setLines([]);
 
+  // Horizontal drag to resize the AI panel.
+  const onAiDragStart = useCallback((e: React.PointerEvent) => {
+    e.preventDefault();
+    aiDragRef.current = e.clientX;
+    const onMove = (ev: PointerEvent) => {
+      if (aiDragRef.current === null) return;
+      const delta = aiDragRef.current - ev.clientX;
+      setAiWidth((w) => Math.min(Math.max(w + delta, 260), window.innerWidth * 0.6));
+      aiDragRef.current = ev.clientX;
+    };
+    const onUp = () => {
+      aiDragRef.current = null;
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  }, []);
+
   // Interactive terminal command set (Remix-like) — drives the same actions
-  // as the toolbar without leaving the keyboard. No `deploy`: CRUZ's editor
-  // deliberately has no deploy step (see README/route comment above), so
-  // that command gets an explicit, on-brand message instead of either
-  // silently doing nothing or erroring as unrecognized.
+  // as the toolbar without leaving the keyboard.
   const runTerminalCommand = useCallback(
     (raw: string) => {
       const ts = new Date().toLocaleTimeString();
@@ -177,7 +267,7 @@ function EditorPage() {
           print("  cat <path>          Print a file's contents");
           print("  open <path>         Open a file in the editor");
           print("  active              Show the active file");
-          print("  deploy              Why there's no deploy command here");
+          print("  deploy              How to deploy");
           print("  clear               Clear the terminal");
           break;
         case "clear":
@@ -217,14 +307,15 @@ function EditorPage() {
         }
         case "open": {
           if (!arg) return print("usage: open <path>", "warning");
-          if (!ws.solFiles.some((f) => f.path === arg)) return print(`No such file: ${arg}`, "error");
+          if (!ws.solFiles.some((f) => f.path === arg))
+            return print(`No such file: ${arg}`, "error");
           ws.openFile(arg);
           print(`Opened ${arg}`, "success");
           break;
         }
         case "deploy":
           print(
-            "CRUZ's Contract Editor has no deploy step by design — see the README. Use the Scaffolder's GitHub/Vercel delivery for a runnable app, or your own toolchain to deploy this contract.",
+            "Use the Deploy button (toolbar) to compile and sign a deployment with your connected wallet. The terminal can't sign transactions.",
             "warning",
           );
           break;
@@ -239,6 +330,56 @@ function EditorPage() {
     if (!lastResult) return [];
     return [...lastResult.errors, ...lastResult.warnings].filter((e) => e.sourceLocation);
   }, [lastResult]);
+
+  const hasErrors = lastResult?.status === "error" && lastResult.errors.length > 0;
+
+  // Hand the current compile errors + source to the AI panel and open it.
+  const requestAiFix = useAiIntake((s) => s.request);
+  const fixWithAi = useCallback(() => {
+    if (!lastResult || lastResult.status !== "error") return;
+    const errs = lastResult.errors.map((e) => e.formattedMessage).join("\n\n");
+    const prompt =
+      `My Solidity contract failed to compile in CRUZ's Contract Editor (solc ${version}). ` +
+      `Explain what's wrong and return a corrected, complete version.\n\n` +
+      `Compiler errors:\n${errs}\n\n` +
+      `Contract (${ws.activePath}):\n\`\`\`solidity\n${activeSol}\n\`\`\``;
+    setAiOpen(true);
+    requestAiFix(prompt);
+  }, [lastResult, version, ws.activePath, activeSol, requestAiFix]);
+
+  const explainWithAi = useCallback(() => {
+    if (!lastResult || lastResult.status !== "error") return;
+    const errs = lastResult.errors.map((e) => e.formattedMessage).join("\n\n");
+    const prompt =
+      `Explain this Solidity compile error from CRUZ's Contract Editor (solc ${version}) ` +
+      `in plain language: what it means, why it happens, and how to fix it. Be concise.\n\n` +
+      `Compiler errors:\n${errs}\n\n` +
+      `Contract (${ws.activePath}):\n\`\`\`solidity\n${activeSol}\n\`\`\``;
+    setAiOpen(true);
+    requestAiFix(prompt);
+  }, [lastResult, version, ws.activePath, activeSol, requestAiFix]);
+
+  // Applying AI code into the editor. Replacing a non-empty file is destructive,
+  // so confirm first; an empty file just gets filled.
+  const handleUseCode = (code: string) => {
+    if (!activeSol.trim()) {
+      ws.setContent(ws.activePath, code);
+      toast.success(`Inserted into ${ws.activePath}`);
+    } else {
+      setPendingApply(code);
+    }
+  };
+  const applyPending = () => {
+    if (pendingApply == null) return;
+    ws.setContent(ws.activePath, pendingApply);
+    setPendingApply(null);
+    toast.success(`Replaced ${ws.activePath}`);
+  };
+  const applyDiff = useMemo(
+    () => (pendingApply !== null ? diffLines(activeSol, pendingApply) : []),
+    [pendingApply, activeSol],
+  );
+  const applyDiffStats = diffStats(applyDiff);
 
   // ── File explorer operations ──
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -271,7 +412,9 @@ function EditorPage() {
     const entries: Array<{ path: string; content: string }> = [];
     for (const f of Array.from(list)) {
       if (f.size > 1_000_000) continue; // text-only editor, skip obvious binaries
-      const rel = (asFolder ? (f as File & { webkitRelativePath?: string }).webkitRelativePath : "") || f.name;
+      const rel =
+        (asFolder ? (f as File & { webkitRelativePath?: string }).webkitRelativePath : "") ||
+        f.name;
       entries.push({ path: rel, content: await f.text() });
     }
     if (entries.length) {
@@ -285,9 +428,12 @@ function EditorPage() {
       <PageHeader
         breadcrumb={["CRUZ", "Contract Editor"]}
         title="Contract Editor"
-        subtitle="Edit and compile Solidity in a multi-file workspace — for reviewing demo and generated contracts. No deploy step here."
+        subtitle="Edit, compile, inspect, and deploy Solidity in a multi-file workspace — with an AI assistant for the file you're working on."
       />
-      <div className="flex flex-col overflow-hidden border-t border-border" style={{ height: "80vh" }}>
+      <div
+        className="flex flex-col overflow-hidden border-t border-border"
+        style={{ height: "80vh" }}
+      >
         {/* Toolbar */}
         <div className="flex h-[44px] shrink-0 items-center gap-3 border-b border-border bg-surface px-3">
           <select
@@ -321,8 +467,53 @@ function EditorPage() {
             Compile
           </button>
 
+          <span className="mx-1 h-4 w-px bg-border" />
+
+          <button
+            onClick={() => setDeployOpen(true)}
+            disabled={
+              !ws.solFiles.some((f) => f.path === ws.activePath) && ws.solFiles.length === 0
+            }
+            className="flex items-center gap-1 rounded bg-primary px-2.5 py-1 font-mono text-[11px] font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-40"
+          >
+            <Rocket className="h-3 w-3" /> Deploy
+          </button>
+
+          {hasErrors && (
+            <>
+              <button
+                onClick={explainWithAi}
+                className="flex items-center gap-1 rounded border border-info px-2.5 py-1 font-mono text-[11px] text-info hover:bg-info/10"
+                title="Open the AI panel and explain this error"
+              >
+                <Sparkles className="h-3 w-3" /> Explain Error
+              </button>
+              <button
+                onClick={fixWithAi}
+                className="flex items-center gap-1 rounded border border-warning px-2.5 py-1 font-mono text-[11px] text-warning hover:bg-warning/10"
+                title="Send the compile errors to the AI assistant for a fix"
+              >
+                <Wrench className="h-3 w-3" /> Fix with AI
+              </button>
+            </>
+          )}
+
           <div className="flex-1" />
           <span className="font-mono text-[11px] text-muted-foreground">{ws.activePath}</span>
+          <div className="flex-1" />
+
+          <button
+            onClick={() => setAiOpen((o) => !o)}
+            className={cn(
+              "flex items-center gap-1 rounded border px-2.5 py-1 font-mono text-[11px] transition",
+              aiOpen
+                ? "border-primary bg-primary/10 text-primary"
+                : "border-border text-muted-foreground hover:border-primary hover:text-primary",
+            )}
+            title="Toggle AI assistant"
+          >
+            <Sparkles className="h-3 w-3" /> AI
+          </button>
         </div>
 
         {/* Panels */}
@@ -335,19 +526,39 @@ function EditorPage() {
                   Files
                 </span>
                 <div className="flex gap-0.5">
-                  <button onClick={() => newFileIn("")} title="New file" className="rounded p-1 text-meta hover:text-foreground">
+                  <button
+                    onClick={() => newFileIn("")}
+                    title="New file"
+                    className="rounded p-1 text-meta hover:text-foreground"
+                  >
                     <FilePlus className="h-3 w-3" />
                   </button>
-                  <button onClick={() => newFolderIn("")} title="New folder" className="rounded p-1 text-meta hover:text-foreground">
+                  <button
+                    onClick={() => newFolderIn("")}
+                    title="New folder"
+                    className="rounded p-1 text-meta hover:text-foreground"
+                  >
                     <FolderPlus className="h-3 w-3" />
                   </button>
-                  <button onClick={() => fileInputRef.current?.click()} title="Import file(s)" className="rounded p-1 text-meta hover:text-foreground">
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    title="Import file(s)"
+                    className="rounded p-1 text-meta hover:text-foreground"
+                  >
                     <Upload className="h-3 w-3" />
                   </button>
-                  <button onClick={() => folderInputRef.current?.click()} title="Import folder" className="rounded p-1 text-meta hover:text-foreground">
+                  <button
+                    onClick={() => folderInputRef.current?.click()}
+                    title="Import folder"
+                    className="rounded p-1 text-meta hover:text-foreground"
+                  >
                     <FolderInput className="h-3 w-3" />
                   </button>
-                  <button onClick={() => setSidebarCollapsed(true)} title="Hide files" className="rounded p-1 text-meta hover:text-foreground">
+                  <button
+                    onClick={() => setSidebarCollapsed(true)}
+                    title="Hide files"
+                    className="rounded p-1 text-meta hover:text-foreground"
+                  >
                     <X className="h-3 w-3" />
                   </button>
                 </div>
@@ -413,6 +624,7 @@ function EditorPage() {
                     filename={ws.activePath}
                     onChange={(v) => ws.setContent(ws.activePath, v)}
                     diagnostics={diagnostics}
+                    gotoLine={gotoLine}
                   />
                 </ClientOnly>
               ) : (
@@ -431,14 +643,40 @@ function EditorPage() {
               <GripHorizontal className="h-3 w-3 text-meta" />
             </div>
 
+            {/* Terminal + Inspector (tabbed) */}
             {!terminalCollapsed && (
-              <div style={{ height: terminalHeight }} className="shrink-0">
-                <EditorTerminal
-                  lines={lines}
-                  onClear={clearTerminal}
-                  onCollapse={() => setTerminalCollapsed(true)}
-                  onCommand={runTerminalCommand}
-                />
+              <div style={{ height: terminalHeight }} className="flex shrink-0 flex-col">
+                <div className="flex shrink-0 items-center gap-1 border-t border-border bg-surface px-2 pt-1">
+                  <BottomTab
+                    active={bottomTab === "terminal"}
+                    onClick={() => setBottomTab("terminal")}
+                  >
+                    Terminal
+                  </BottomTab>
+                  <BottomTab
+                    active={bottomTab === "inspector"}
+                    onClick={() => setBottomTab("inspector")}
+                  >
+                    Inspector
+                    {findings.length > 0 && (
+                      <span className="ml-1 rounded-full bg-primary/20 px-1.5 text-[9px] text-primary">
+                        {findings.length}
+                      </span>
+                    )}
+                  </BottomTab>
+                </div>
+                <div className="min-h-0 flex-1">
+                  {bottomTab === "terminal" ? (
+                    <EditorTerminal
+                      lines={lines}
+                      onClear={clearTerminal}
+                      onCollapse={() => setTerminalCollapsed(true)}
+                      onCommand={runTerminalCommand}
+                    />
+                  ) : (
+                    <InspectorPanel findings={findings} onJump={jumpToLine} />
+                  )}
+                </div>
               </div>
             )}
             {terminalCollapsed && (
@@ -450,8 +688,217 @@ function EditorPage() {
               </button>
             )}
           </div>
+
+          {/* AI assistant panel (resizable) */}
+          {aiOpen && (
+            <>
+              <div
+                onPointerDown={onAiDragStart}
+                className="flex w-[6px] shrink-0 cursor-col-resize items-center justify-center bg-surface-2 hover:bg-primary/30"
+              >
+                <GripVertical className="h-3 w-3 text-meta" />
+              </div>
+              <aside style={{ width: aiWidth }} className="shrink-0 border-l border-border">
+                <AiChat
+                  contextLabel={ws.activePath}
+                  getContext={() => (ws.activePath.endsWith(".sol") ? activeSol : null)}
+                  onUseCode={(code) => handleUseCode(code)}
+                  placeholder="Ask about your contract…"
+                />
+              </aside>
+            </>
+          )}
         </div>
       </div>
+
+      {/* Deploy slide-in panel */}
+      {deployOpen && (
+        <div
+          className="fixed inset-0 z-50 flex justify-end bg-black/60"
+          onClick={() => setDeployOpen(false)}
+        >
+          <div
+            className="flex h-full w-full max-w-md flex-col overflow-y-auto border-l border-border bg-background p-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-3 flex items-center justify-between">
+              <span className="font-mono text-xs font-bold uppercase tracking-wider text-meta">
+                Deploy
+              </span>
+              <button
+                onClick={() => setDeployOpen(false)}
+                className="rounded p-1 text-meta hover:text-foreground"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            {ws.solFiles.length === 0 ? (
+              <p className="font-mono text-xs text-meta">No .sol files in this workspace yet.</p>
+            ) : (
+              <DeployContractPanel files={ws.files} />
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Safe-apply confirm — replacing a non-empty file from the AI panel */}
+      {pendingApply !== null && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          onClick={() => setPendingApply(null)}
+        >
+          <div
+            className="flex max-h-[80vh] w-full max-w-lg flex-col overflow-hidden rounded-lg border border-border bg-background"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-2 border-b border-border px-4 py-2.5">
+              <Wrench className="h-4 w-4 text-primary" />
+              <span className="font-mono text-xs font-semibold text-foreground">
+                Replace {ws.activePath}?
+              </span>
+            </div>
+            <div className="px-4 py-2 font-mono text-[11px] text-meta">
+              Overwrites the whole file —{" "}
+              <span className="text-success">+{applyDiffStats.added}</span>{" "}
+              <span className="text-danger">−{applyDiffStats.removed}</span> lines. Recoverable only
+              via editor undo.
+            </div>
+            <DiffView ops={applyDiff} />
+            <div className="flex justify-end gap-2 border-t border-border px-4 py-2.5">
+              <button
+                onClick={() => setPendingApply(null)}
+                className="rounded border border-border px-3 py-1 font-mono text-[11px] text-meta hover:text-foreground"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={applyPending}
+                className="rounded bg-primary px-3 py-1 font-mono text-[11px] font-medium text-primary-foreground hover:bg-primary-hover"
+              >
+                Replace file
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
+  );
+}
+
+/* ── Diff view (safe-apply confirm) ── */
+function DiffView({ ops }: { ops: ReturnType<typeof diffLines> }) {
+  return (
+    <div className="mx-4 mb-2 flex-1 overflow-auto rounded border border-border bg-surface font-mono text-[10px] leading-relaxed">
+      {ops.map((op, i) => (
+        <div
+          key={i}
+          className={cn(
+            "whitespace-pre-wrap px-2",
+            op.type === "add" && "bg-success/10 text-success",
+            op.type === "del" && "bg-danger/10 text-danger",
+            op.type === "ctx" && "text-meta",
+          )}
+        >
+          <span className="select-none opacity-60">
+            {op.type === "add" ? "+ " : op.type === "del" ? "- " : "  "}
+          </span>
+          {op.text || " "}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ── Bottom-panel tab button ── */
+function BottomTab({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "flex items-center rounded-t px-3 py-1 font-mono text-[10px] uppercase tracking-wider transition",
+        active ? "bg-background text-foreground" : "text-meta hover:text-foreground",
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
+/* ── Inspector (static analysis findings) ── */
+function InspectorPanel({
+  findings,
+  onJump,
+}: {
+  findings: AnalysisFinding[];
+  onJump: (line?: number) => void;
+}) {
+  if (findings.length === 0) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-2 bg-background font-mono text-[11px] text-meta">
+        <ShieldCheck className="h-5 w-5 text-success" />
+        No static-analysis findings. Compile a contract to run the inspector.
+      </div>
+    );
+  }
+  return (
+    <div className="h-full space-y-2 overflow-y-auto bg-background p-3">
+      {findings.map((f, i) => (
+        <FindingCard key={`${f.code}-${i}`} finding={f} onJump={onJump} />
+      ))}
+    </div>
+  );
+}
+
+function FindingCard({
+  finding,
+  onJump,
+}: {
+  finding: AnalysisFinding;
+  onJump: (line?: number) => void;
+}) {
+  const sev =
+    finding.severity === "error"
+      ? { label: "ERROR", cls: "text-danger", Icon: AlertTriangle }
+      : finding.severity === "warning"
+        ? { label: "WARNING", cls: "text-warning", Icon: AlertTriangle }
+        : { label: "INFO", cls: "text-meta", Icon: Info };
+  return (
+    <button
+      onClick={() => onJump(finding.line)}
+      className={cn(
+        "block w-full rounded border border-border bg-surface p-2.5 text-left transition hover:border-primary",
+        finding.line ? "cursor-pointer" : "cursor-default",
+      )}
+    >
+      <div className="flex items-center gap-2">
+        <span className="rounded bg-primary/15 px-1.5 py-0.5 font-mono text-[9px] text-primary">
+          {finding.code}
+        </span>
+        <span className={cn("flex items-center gap-1 font-mono text-[9px]", sev.cls)}>
+          <sev.Icon className="h-3 w-3" />
+          {sev.label}
+        </span>
+        {finding.line && (
+          <span className="ml-auto font-mono text-[9px] text-meta">line {finding.line}</span>
+        )}
+      </div>
+      <div className="mt-1.5 font-mono text-[11px] font-semibold text-foreground">
+        {finding.title}
+      </div>
+      <p className="mt-1 font-mono text-[10px] leading-relaxed text-muted-foreground">
+        {finding.description}
+      </p>
+      <p className="mt-1.5 whitespace-pre-wrap font-mono text-[10px] leading-relaxed text-primary">
+        Fix: {finding.hint}
+      </p>
+    </button>
   );
 }

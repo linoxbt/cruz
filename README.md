@@ -118,11 +118,11 @@ Compose a cross-chain Universal Transaction (token transfer or arbitrary contrac
 
 ### Starter Scaffolder — `/scaffolder`
 
-Generate a complete, runnable, chain-abstracted starter app (Universal Accounts pre-wired, optional Magic embedded-wallet and gas-sponsorship toggles) from a TS file-map template, then deliver it: push to a fresh GitHub repo via the GitHub API, deploy to Vercel via the Vercel API, or download as an archive. Any demo contract in the template opens straight in CRUZ's Contract Editor.
+Generate a complete, runnable, chain-abstracted starter app either from a fixed TS file-map template (Universal Accounts pre-wired, optional Magic embedded-wallet and gas-sponsorship toggles) or from a project you already built in the AI Builder, then deliver it: push to a fresh GitHub repo, deploy to Vercel or Netlify, or download as a real, runnable ZIP. Any demo contract opens straight in CRUZ's Contract Editor.
 
 ### Contract Editor — `/editor`
 
-Edit and compile Solidity in the browser via a `solc` Web Worker (Monaco editor, Solidity syntax highlighting + autocomplete, colored compiler terminal). For reviewing the demo/generated contracts the Scaffolder produces — no deploy step here.
+Edit and compile Solidity in the browser via a `solc` Web Worker (Monaco editor, Solidity syntax highlighting + autocomplete, colored compiler terminal, multi-file workspace). A Terminal/Inspector tab pair below the editor (static analysis findings, jump-to-line), a Deploy button that compiles and signs a deployment through the connected Magic wallet or an opt-in generated wallet, and a "Code with AI" panel for writing/debugging/explaining the open contract.
 
 ### Universal Account Dashboard — `/app`
 

@@ -33,14 +33,14 @@ export const CRUZ_MODULES: CruzModuleDef[] = [
     label: "Starter Scaffolder",
     path: "/scaffolder",
     description:
-      "Generate a runnable, chain-abstracted starter app and deliver it via GitHub or Vercel.",
+      "Generate a starter app (or deliver one built in the AI Builder) via GitHub, Vercel, or Netlify.",
   },
   {
     id: "editor",
     label: "Contract Editor",
     path: "/editor",
     description:
-      "Edit and compile a Solidity contract — for reviewing demo and generated contracts.",
+      "Edit, compile, inspect, and deploy a Solidity contract — with an AI assistant on hand.",
   },
   {
     id: "builder",
