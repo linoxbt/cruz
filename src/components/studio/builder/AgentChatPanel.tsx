@@ -1,6 +1,18 @@
 import { useEffect, useRef, useState } from "react";
-import { Bot, CheckCircle2, Link2, Loader2, Send, Square, User, XCircle } from "lucide-react";
+import {
+  Bot,
+  CheckCircle2,
+  Circle,
+  Link2,
+  ListChecks,
+  Loader2,
+  Send,
+  Square,
+  User,
+  XCircle,
+} from "lucide-react";
 import type { TimelineItem, ToolStep } from "@/hooks/useAppAgent";
+import type { AgentPlan } from "@/lib/studio-ai/conversations";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -42,6 +54,33 @@ function ToolStepRow({ step }: { step: ToolStep }) {
         <div className="text-foreground">{STEP_LABELS[step.kind]}</div>
         {step.detail && <div className="mt-0.5 truncate text-meta">{step.detail}</div>}
       </div>
+    </div>
+  );
+}
+
+/** The agent's analysis + numbered plan, shown as its own checklist card up
+ *  front (before files finish streaming) — the "lay out the task before
+ *  executing it" behavior Claude Code/Codex use, rather than a plain prose
+ *  paragraph indistinguishable from any other chat message. */
+function PlanCard({ plan }: { plan: AgentPlan }) {
+  return (
+    <div className="max-w-[92%] space-y-2 rounded-sm border border-border bg-surface px-3 py-2.5 font-mono text-xs">
+      <div className="flex items-center gap-1.5 font-bold text-foreground">
+        <ListChecks className="h-3.5 w-3.5 text-primary" /> Plan
+      </div>
+      {plan.analysis && (
+        <p className="whitespace-pre-wrap text-[11px] text-muted-foreground">{plan.analysis}</p>
+      )}
+      {plan.steps.length > 0 && (
+        <ul className="space-y-1">
+          {plan.steps.map((step, i) => (
+            <li key={i} className="flex items-start gap-1.5 text-foreground">
+              <Circle className="mt-0.5 h-2.5 w-2.5 shrink-0 text-meta" />
+              <span>{step}</span>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
@@ -88,6 +127,7 @@ export function AgentChatPanel({
         )}
         {timeline.map((item, i) => {
           if (item.role === "tool" && item.tool) return <ToolStepRow key={i} step={item.tool} />;
+          if (item.plan) return <PlanCard key={i} plan={item.plan} />;
           const isUser = item.role === "user";
           return (
             <div key={i} className={cn("flex gap-2", isUser && "flex-row-reverse")}>

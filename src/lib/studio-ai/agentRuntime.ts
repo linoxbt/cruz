@@ -1,7 +1,12 @@
 import { create } from "zustand";
 import { chatStream, type ChatMessage } from "@/lib/ai";
 import { CRUZ_AGENT_SYSTEM_PROMPT } from "@/lib/studio-ai/agentPrompt";
-import { parseFileMap, extractProse, extractSuggestedName } from "@/lib/studio-ai/parseFileMap";
+import {
+  parseFileMap,
+  extractPlan,
+  extractClosingNote,
+  extractSuggestedName,
+} from "@/lib/studio-ai/parseFileMap";
 import { runStructuralChecks, type StructuralFinding } from "@/lib/studio-ai/structuralCheck";
 import { enforceProtectedFiles } from "@/lib/studio-ai/protectedFiles";
 import {
@@ -176,9 +181,10 @@ export const useAgentRuntime = create<AgentRuntimeStore>((set, get) => {
 
           pushTimeline(conversationId, {
             role: "tool",
-            tool: { kind: "generate", status: "running", detail: "Starting…" },
+            tool: { kind: "generate", status: "running", detail: "Analyzing…" },
           });
           let full = "";
+          let planPushed = false;
           const controller = new AbortController();
           internal.abort = controller;
           await chatStream({
@@ -189,6 +195,18 @@ export const useAgentRuntime = create<AgentRuntimeStore>((set, get) => {
               full += delta;
               const seen = [...full.matchAll(/###\s*FILE:\s*(\S+)/g)].map((m) => m[1]);
               const latest = seen[seen.length - 1];
+              // The analysis/plan is only guaranteed complete once the model
+              // has moved past it into file blocks — that's the signal to
+              // surface it as its own checklist card, before files finish
+              // streaming, matching how Claude Code/Codex show a plan up
+              // front rather than after the fact.
+              if (latest && !planPushed) {
+                const plan = extractPlan(full);
+                if (plan) {
+                  pushTimeline(conversationId, { role: "assistant", plan });
+                  planPushed = true;
+                }
+              }
               if (latest) updateLastTool(conversationId, { detail: `Writing ${latest}…` });
               patchRun(conversationId, { streamingFiles: parseFileMap(full) });
             },
@@ -209,11 +227,19 @@ export const useAgentRuntime = create<AgentRuntimeStore>((set, get) => {
             detail: `${Object.keys(produced).length} file(s) written.`,
           });
 
+          // Fallback in case streaming ended before a FILE marker was ever
+          // seen mid-flight (e.g. a very short response) — still show the
+          // plan rather than lose it.
+          if (!planPushed) {
+            const plan = extractPlan(full);
+            if (plan) pushTimeline(conversationId, { role: "assistant", plan });
+          }
+
           const name = extractSuggestedName(full);
           if (name) patchRun(conversationId, { suggestedName: name });
 
-          const prose = extractProse(full);
-          if (prose) pushTimeline(conversationId, { role: "assistant", content: prose });
+          const note = extractClosingNote(full);
+          if (note) pushTimeline(conversationId, { role: "assistant", content: note });
 
           workingFiles = { ...workingFiles, ...produced };
 

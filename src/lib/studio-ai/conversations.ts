@@ -13,10 +13,19 @@ export interface ToolStep {
   detail?: string;
 }
 
+export interface AgentPlan {
+  analysis: string;
+  steps: string[];
+}
+
 export interface TimelineItem {
   role: "user" | "assistant" | "tool";
   content?: string;
   tool?: ToolStep;
+  /** Set on assistant items that are the turn's analysis/plan (see
+   *  agentPrompt.ts/parseFileMap.ts's extractPlan) — rendered as a distinct
+   *  checklist card instead of a plain chat bubble. */
+  plan?: AgentPlan;
 }
 
 export interface Conversation {

@@ -32,18 +32,49 @@ export function isGenerationComplete(text: string): boolean {
   return /\n@@DONE\b/.test(text) || /^@@DONE\b/.test(text.trim());
 }
 
-// Everything the model wrote OUTSIDE the file blocks — its plan before the
-// files and closing note after (see agentPrompt.ts's "Output protocol")
-// — shown to the user as real chat narration instead of being discarded.
-// Uses a single-block regex rather than parseFileMap's index-based scan
-// since this is display-only (never feeds actual file content anywhere).
-export function extractProse(text: string): string {
+export interface AgentPlan {
+  analysis: string;
+  steps: string[];
+}
+
+/** Pulls the model's `### ANALYSIS` / `### PLAN` sections (see
+ *  agentPrompt.ts — required before every turn's files, not just big ones)
+ *  from the prefix before the first `### FILE:` marker. Only call this once
+ *  that marker has actually appeared in the streamed text — by protocol
+ *  everything before it is already complete at that point, so there's no
+ *  risk of returning a plan that's still mid-sentence. Returns null if
+ *  neither section is present (e.g. the model skipped the protocol). */
+export function extractPlan(text: string): AgentPlan | null {
+  const firstFileIdx = text.search(/###\s*FILE:/);
+  const head = (
+    firstFileIdx === -1 ? text.split(/\n@@DONE\b/)[0] : text.slice(0, firstFileIdx)
+  ).replace(/^###\s*SUGGESTED_NAME:.*$/m, "");
+
+  const analysisMatch = head.match(/###\s*ANALYSIS\s*\n([\s\S]*?)(?=\n###\s*PLAN\b|$)/i);
+  const planMatch = head.match(/###\s*PLAN\s*\n([\s\S]*)$/i);
+
+  const analysis = analysisMatch ? analysisMatch[1].trim() : "";
+  const stepsBlock = planMatch ? planMatch[1].trim() : "";
+  const steps = stepsBlock
+    ? [...stepsBlock.matchAll(/^\s*\d+[.)]\s+(.+)$/gm)].map((m) => m[1].trim())
+    : [];
+
+  if (!analysis && steps.length === 0) return null;
+  return { analysis, steps };
+}
+
+/** Everything the model wrote after its LAST file block — the closing note
+ *  (see agentPrompt.ts) — shown as real chat narration instead of being
+ *  discarded. Deliberately scoped to just the trailing note (not the leading
+ *  analysis/plan, which extractPlan renders separately) so the two aren't
+ *  shown twice. */
+export function extractClosingNote(text: string): string {
   const body = text.split(/\n@@DONE\b/)[0];
-  const withoutFiles = body
-    .replace(/###\s*FILE:\s*\S+\s*\n```[a-zA-Z0-9]*\n[\s\S]*?\n```/g, "")
-    .replace(/^###\s*SUGGESTED_NAME:.*$/m, "")
-    .replace(/\n{3,}/g, "\n\n");
-  return withoutFiles.trim();
+  const fileBlockRe = /###\s*FILE:\s*\S+\s*\n```[a-zA-Z0-9]*\n[\s\S]*?\n```/g;
+  const matches = [...body.matchAll(fileBlockRe)];
+  if (matches.length === 0) return "";
+  const last = matches[matches.length - 1];
+  return body.slice(last.index! + last[0].length).trim();
 }
 
 /** Pulls the model's `### SUGGESTED_NAME: <name>` line (see agentPrompt.ts —
