@@ -1,9 +1,11 @@
+import { Bot, Code2, PackagePlus, ScanSearch, Waypoints, type LucideIcon } from "lucide-react";
+
 // CRUZ module manifest — the single source of truth for the app's modules.
 // CRUZ is single-mode (it's always "chain abstraction"), so there's no
 // mode/chain gating here: every module listed is always enabled. The manifest
 // exists so the landing page and sidebar render from one source, and so adding
 // a future module is "add an id + drop in a route file" with no refactor.
-export type CruzModuleId = "inspector" | "composer" | "scaffolder" | "editor";
+export type CruzModuleId = "inspector" | "composer" | "scaffolder" | "editor" | "builder";
 
 export interface CruzModuleDef {
   id: CruzModuleId;
@@ -40,4 +42,21 @@ export const CRUZ_MODULES: CruzModuleDef[] = [
     description:
       "Edit and compile a Solidity contract — for reviewing demo and generated contracts.",
   },
+  {
+    id: "builder",
+    label: "AI Builder",
+    path: "/builder",
+    description:
+      "Describe an app and an AI agent builds it — live file tree, diff review, and preview.",
+  },
 ];
+
+// One icon per module id, shared by the sidebar and the dashboard's quick
+// actions so the two can't silently drift if a module id ever changes.
+export const CRUZ_MODULE_ICONS: Record<CruzModuleId, LucideIcon> = {
+  inspector: ScanSearch,
+  composer: Waypoints,
+  scaffolder: PackagePlus,
+  editor: Code2,
+  builder: Bot,
+};

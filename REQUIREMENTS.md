@@ -43,17 +43,17 @@ External services, keys, and where to get them.
   token: entered per-use, not persisted.
 - **Magic (optional)**: only needed if a generated starter app has the embedded-wallet toggle on.
   Publishable key from [dashboard.magic.link](https://dashboard.magic.link) — goes into the
-  *generated project's* own `.env`, not CRUZ's.
+  _generated project's_ own `.env`, not CRUZ's.
 
 ## Environment variables
 
 See `.env.example` for the exact variable names and comments — CRUZ follows the standard Vite
 three-tier convention:
 
-| Tier | Example | Where it lives |
-| --- | --- | --- |
-| Public (`VITE_*`) | `VITE_PARTICLE_PROJECT_ID`, `VITE_ARBITRUM_RPC` | Inlined into the browser bundle at build time — safe for publishable IDs, not secrets |
-| Server-only (no prefix) | *(none needed for CRUZ)* | Read only inside server functions; GitHub/Vercel tokens are user-supplied per-request instead of a server env var, since they're per-user, high-stakes credentials |
+| Tier                    | Example                                         | Where it lives                                                                                                                                                     |
+| ----------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Public (`VITE_*`)       | `VITE_PARTICLE_PROJECT_ID`, `VITE_ARBITRUM_RPC` | Inlined into the browser bundle at build time — safe for publishable IDs, not secrets                                                                              |
+| Server-only (no prefix) | _(none needed for CRUZ)_                        | Read only inside server functions; GitHub/Vercel tokens are user-supplied per-request instead of a server env var, since they're per-user, high-stakes credentials |
 
 ## Reused infrastructure
 

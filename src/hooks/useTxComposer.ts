@@ -103,11 +103,16 @@ export function useTxComposer() {
   }
 
   async function execute() {
-    if (!magic || !address || !transaction) return;
+    if (!transaction) return;
+    if (!magic || !address) {
+      setError("Connect your CRUZ wallet (Magic) to execute this transaction.");
+      setStatus("error");
+      return;
+    }
     try {
       setStatus("executing");
       const ua = getUniversalAccount(address);
-      const result = await signAndSendWithMagic(ua, transaction, magic as never, address);
+      const result = await signAndSendWithMagic(ua, transaction, address);
       setTxId((result?.transactionId as string | undefined) ?? transaction.transactionId);
       setStatus("done");
     } catch (e) {

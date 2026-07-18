@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { parseAbiItem, type AbiFunction } from "viem";
 import { ZeroAddress } from "@particle-network/universal-account-sdk";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
@@ -9,11 +10,23 @@ import type { ComposerInput } from "@/hooks/useTxComposer";
 
 const ADDRESS_RE = /^0x[a-fA-F0-9]{40}$/;
 
+// Mirrors buildContractCallData's own name derivation in useTxComposer.ts, so
+// the argValues keys produced here line up with the inputs it re-derives from
+// the same functionAbi string.
+function namedInputs(fn: AbiFunction) {
+  return fn.inputs.map((p, i) => ({ name: p.name || `arg${i}`, type: p.type }));
+}
+
 export function AssetPicker({
   busy,
+  disabled,
   onCompose,
 }: {
   busy: boolean;
+  /** True when previewing needs something the caller hasn't satisfied yet
+   *  (e.g. no wallet connected) — disables Preview instead of letting it run
+   *  and immediately fail. */
+  disabled?: boolean;
   onCompose: (input: ComposerInput) => void;
 }) {
   const [mode, setMode] = useState<"transfer" | "contract-call">("transfer");
@@ -27,11 +40,24 @@ export function AssetPicker({
   const [targetAddress, setTargetAddress] = useState("");
   const [value, setValue] = useState("0");
   const [functionAbi, setFunctionAbi] = useState("function transfer(address to, uint256 amount)");
-  const [argsText, setArgsText] = useState("");
+  const [argValues, setArgValues] = useState<Record<string, string>>({});
 
   const transferValid = ADDRESS_RE.test(tokenAddress) && ADDRESS_RE.test(receiver) && !!amount;
-  const callValid =
-    ADDRESS_RE.test(targetAddress) && /^function\s+\w+\s*\(/.test(functionAbi.trim());
+
+  // Parse the signature with viem's real ABI parser rather than a naive
+  // comma split — a manual split misaligns for any type containing a comma
+  // internally (arrays, tuples), silently producing wrong encoded calldata.
+  const parsedFn = useMemo(() => {
+    try {
+      const item = parseAbiItem(functionAbi.trim());
+      return item.type === "function" ? item : null;
+    } catch {
+      return null;
+    }
+  }, [functionAbi]);
+
+  const abiInputs = useMemo(() => (parsedFn ? namedInputs(parsedFn) : []), [parsedFn]);
+  const callValid = ADDRESS_RE.test(targetAddress) && !!parsedFn;
 
   const submit = () => {
     if (mode === "transfer") {
@@ -44,19 +70,15 @@ export function AssetPicker({
       });
     } else {
       if (!callValid) return;
-      // Param names, in signature order, mapped to comma-separated values.
-      const paramNames = (functionAbi.match(/\(([^)]*)\)/)?.[1] ?? "")
-        .split(",")
-        .map((p) => p.trim().split(/\s+/).pop())
-        .filter((n): n is string => !!n);
-      const values = argsText.split(",").map((v) => v.trim());
-      const argValues = Object.fromEntries(paramNames.map((n, i) => [n, values[i] ?? ""]));
+      const values = Object.fromEntries(
+        abiInputs.map((inp) => [inp.name, argValues[inp.name] ?? ""]),
+      );
       onCompose({
         mode: "contract-call",
         targetAddress: targetAddress as `0x${string}`,
         value: value || "0",
         functionAbi: functionAbi.trim(),
-        argValues,
+        argValues: values,
       });
     }
   };
@@ -125,21 +147,36 @@ export function AssetPicker({
               className="mt-1 font-mono text-xs"
             />
           </div>
-          <div>
-            <Label className="font-mono text-xs">Arguments (comma-separated, in order)</Label>
-            <Input
-              value={argsText}
-              onChange={(e) => setArgsText(e.target.value)}
-              placeholder="0xRecipient…, 1000000000000000000"
-              className="mt-1 font-mono text-xs"
-            />
-          </div>
+          {abiInputs.length > 0 ? (
+            <div className="space-y-2">
+              <Label className="font-mono text-xs">Arguments</Label>
+              {abiInputs.map((inp) => (
+                <div key={inp.name}>
+                  <Label className="font-mono text-[10px] text-meta">
+                    {inp.name} <span className="text-meta/70">({inp.type})</span>
+                  </Label>
+                  <Input
+                    value={argValues[inp.name] ?? ""}
+                    onChange={(e) =>
+                      setArgValues((prev) => ({ ...prev, [inp.name]: e.target.value }))
+                    }
+                    placeholder={inp.type.endsWith("[]") ? "[1, 2, 3]" : "0x… or a value"}
+                    className="mt-1 font-mono text-xs"
+                  />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="font-mono text-[11px] text-meta">
+              Enter a valid function signature above to fill in its arguments.
+            </p>
+          )}
         </TabsContent>
       </Tabs>
 
       <Button
         className="mt-4"
-        disabled={busy || (mode === "transfer" ? !transferValid : !callValid)}
+        disabled={busy || disabled || (mode === "transfer" ? !transferValid : !callValid)}
         onClick={submit}
       >
         Preview

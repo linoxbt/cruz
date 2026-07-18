@@ -1,14 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useAccount } from "wagmi";
-import {
-  Loader2,
-  ScanSearch,
-  Waypoints,
-  PackagePlus,
-  Code2,
-  ArrowRight,
-  Wallet,
-} from "lucide-react";
+import { Loader2, ArrowRight, Wallet } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ConnectModal } from "@/components/web3/ConnectModal";
@@ -16,7 +8,7 @@ import { useUniversalAccount } from "@/hooks/useUniversalAccount";
 import { useDelegationStatus } from "@/hooks/useDelegationStatus";
 import { isParticleConfigured } from "@/lib/studio/particle";
 import { truncateAddress } from "@/lib/wallet";
-import { CRUZ_MODULES } from "@/lib/studio/manifest";
+import { CRUZ_MODULES, CRUZ_MODULE_ICONS } from "@/lib/studio/manifest";
 import { useState } from "react";
 
 export const Route = createFileRoute("/app")({
@@ -164,7 +156,7 @@ function ConfigNotice() {
 /* ─────────── Delegation status ─────────── */
 
 function DelegationCard({ address }: { address: `0x${string}` }) {
-  const { data, isLoading } = useDelegationStatus(address);
+  const { data, isLoading, isError } = useDelegationStatus(address);
 
   return (
     <Card>
@@ -176,7 +168,11 @@ function DelegationCard({ address }: { address: `0x${string}` }) {
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" /> Reading account code on Arbitrum One…
           </div>
-        ) : data?.isUpgraded ? (
+        ) : isError || !data ? (
+          <p className="text-sm text-danger">
+            Couldn&apos;t read the account&apos;s code from Arbitrum One.
+          </p>
+        ) : data.isUpgraded ? (
           <div className="flex items-center gap-2 text-sm">
             <span className="h-2 w-2 rounded-full bg-success" />
             <span className="font-medium text-success">Upgraded Universal Account</span>
@@ -205,12 +201,6 @@ function DelegationCard({ address }: { address: `0x${string}` }) {
 /* ─────────── Quick actions ─────────── */
 
 function QuickActions() {
-  const icons: Record<string, typeof ScanSearch> = {
-    inspector: ScanSearch,
-    composer: Waypoints,
-    scaffolder: PackagePlus,
-    editor: Code2,
-  };
   return (
     <div>
       <h3 className="mb-3 font-mono text-[11px] uppercase tracking-widest text-meta">
@@ -218,7 +208,7 @@ function QuickActions() {
       </h3>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {CRUZ_MODULES.map((m) => {
-          const Icon = icons[m.id] ?? ScanSearch;
+          const Icon = CRUZ_MODULE_ICONS[m.id];
           return (
             <Link
               key={m.id}

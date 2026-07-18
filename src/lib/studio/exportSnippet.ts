@@ -5,7 +5,7 @@ import type { ComposerInput } from "@/hooks/useTxComposer";
 // after Particle's own official quickstart (ethers Wallet + env credentials),
 // so it drops into a clean Node/TS project with only credentials substituted.
 export function generateExportSnippet(input: ComposerInput): string {
-  const header = `import { UniversalAccount } from "@particle-network/universal-account-sdk";
+  const header = `import { UniversalAccount, UNIVERSAL_ACCOUNT_VERSION } from "@particle-network/universal-account-sdk";
 import { Wallet, getBytes } from "ethers";
 
 const wallet = new Wallet(process.env.PRIVATE_KEY!);
@@ -16,7 +16,7 @@ const ua = new UniversalAccount({
   projectAppUuid: process.env.PARTICLE_APP_ID!,
   smartAccountOptions: {
     name: "MyApp",
-    version: "1.0.0",
+    version: UNIVERSAL_ACCOUNT_VERSION,
     ownerAddress: wallet.address,
     useEIP7702: true,
   },

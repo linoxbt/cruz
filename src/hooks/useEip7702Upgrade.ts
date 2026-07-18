@@ -64,7 +64,7 @@ export function useEip7702Upgrade(): UpgradeResult {
       }
 
       setStatus("signing");
-      const result = await signAndSendWithMagic(ua, tx, magic as never, address);
+      const result = await signAndSendWithMagic(ua, tx, address);
       setTxId((result?.transactionId as string | undefined) ?? tx.transactionId);
       setStatus("done");
     } catch (e) {

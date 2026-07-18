@@ -39,7 +39,10 @@ function ChainTicker() {
     <div className="overflow-hidden border-b border-border bg-surface py-2" aria-hidden="true">
       <div className="cruz-marquee-track flex w-max gap-8 whitespace-nowrap">
         {track.map((c, i) => (
-          <span key={i} className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
+          <span
+            key={i}
+            className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground"
+          >
             <span className="mr-2 text-primary">·</span>
             {c}
           </span>
@@ -125,10 +128,7 @@ function Hero({ onConnect, connected }: { onConnect: () => void; connected: bool
             {connected ? "Open dashboard" : "Get started"}
             <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
           </button>
-          <Link
-            to="/app"
-            className="font-mono text-sm text-muted-foreground hover:text-foreground"
-          >
+          <Link to="/app" className="font-mono text-sm text-muted-foreground hover:text-foreground">
             Explore the app →
           </Link>
         </div>
@@ -203,8 +203,8 @@ function Modules() {
           Everything to build chain-abstracted apps
         </h2>
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-foreground/75">
-          Focused modules, one identity. Inspect, compose, and scaffold — without bridging,
-          without juggling chains.
+          Focused modules, one identity. Inspect, compose, and scaffold — without bridging, without
+          juggling chains.
         </p>
         <div className="mt-10 grid gap-6 md:grid-cols-3">
           {MODULES.map((m) => (

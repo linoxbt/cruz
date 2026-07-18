@@ -1,4 +1,4 @@
-# Netlify deploy config for the DevStation SSR (TanStack Start / Nitro) app.
+# Netlify deploy config for CRUZ's SSR (TanStack Start / Nitro) app.
 #
 # The Nitro `netlify` preset (auto-selected via the NETLIFY env var in
 # vite.config.ts) emits the SSR server function to

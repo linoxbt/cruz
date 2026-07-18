@@ -92,14 +92,14 @@ bun run format     # Prettier
 
 CRUZ follows the standard Vite three-tier env convention. All client-readable vars use the `VITE_` prefix and are inlined at build time.
 
-| Variable | Tier | Purpose |
-| --- | --- | --- |
-| `VITE_MAGIC_PUBLISHABLE_KEY` | Public | Magic publishable key — enables login. From [dashboard.magic.link](https://dashboard.magic.link). |
-| `VITE_PARTICLE_PROJECT_ID` | Public | Particle project ID — enables Universal Accounts. |
-| `VITE_PARTICLE_CLIENT_KEY` | Public | Particle client key. |
-| `VITE_PARTICLE_APP_ID` | Public | Particle app ID. |
-| `VITE_ARBITRUM_RPC` | Public | Arbitrum One RPC URL (default: `https://arb1.arbitrum.io/rpc`; a dedicated provider like Alchemy/Infura is recommended). |
-| `VITE_ARBITRUM_EXPLORER` | Public | Arbiscan base URL (default: `https://arbiscan.io`). |
+| Variable                     | Tier   | Purpose                                                                                                                  |
+| ---------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------ |
+| `VITE_MAGIC_PUBLISHABLE_KEY` | Public | Magic publishable key — enables login. From [dashboard.magic.link](https://dashboard.magic.link).                        |
+| `VITE_PARTICLE_PROJECT_ID`   | Public | Particle project ID — enables Universal Accounts.                                                                        |
+| `VITE_PARTICLE_CLIENT_KEY`   | Public | Particle client key.                                                                                                     |
+| `VITE_PARTICLE_APP_ID`       | Public | Particle app ID.                                                                                                         |
+| `VITE_ARBITRUM_RPC`          | Public | Arbitrum One RPC URL (default: `https://arb1.arbitrum.io/rpc`; a dedicated provider like Alchemy/Infura is recommended). |
+| `VITE_ARBITRUM_EXPLORER`     | Public | Arbiscan base URL (default: `https://arbiscan.io`).                                                                      |
 
 GitHub and Vercel tokens (for the Scaffolder's delivery paths) are **never** env vars — the user pastes them per-action in the Scaffolder UI; they're sent only for that one request and never persisted or logged. See **[REQUIREMENTS.md](./REQUIREMENTS.md)** for the full breakdown, including the two integration constraints verified against the SDKs' own shipped types:
 
@@ -109,18 +109,23 @@ GitHub and Vercel tokens (for the Scaffolder's delivery paths) are **never** env
 ## 🧩 Modules
 
 ### Account Inspector — `/inspector`
+
 Inspect any address's unified balance (Particle `getPrimaryAssets`), see EOA-vs-upgraded status via a raw `eth_getCode` delegation check (the `0xef0100` designator + delegate address), and run a real EIP-7702 upgrade of the connected Magic wallet — a zero-value carrier transaction bundling the pending `eip7702Auth`, signed via `magic.wallet.sign7702Authorization` and submitted through Particle.
 
 ### Transaction Composer — `/composer`
+
 Compose a cross-chain Universal Transaction (token transfer or arbitrary contract call), preview the resolved routing + fees with **no side effects** (the SDK's `create*Transaction` returns the routed transaction without submitting), execute it through the Magic signer, and export a copy-paste-ready TypeScript snippet reproducing the exact transaction — complete enough to drop into a clean project with only credentials substituted.
 
 ### Starter Scaffolder — `/scaffolder`
+
 Generate a complete, runnable, chain-abstracted starter app (Universal Accounts pre-wired, optional Magic embedded-wallet and gas-sponsorship toggles) from a TS file-map template, then deliver it: push to a fresh GitHub repo via the GitHub API, deploy to Vercel via the Vercel API, or download as an archive. Any demo contract in the template opens straight in CRUZ's Contract Editor.
 
 ### Contract Editor — `/editor`
+
 Edit and compile Solidity in the browser via a `solc` Web Worker (Monaco editor, Solidity syntax highlighting + autocomplete, colored compiler terminal). For reviewing the demo/generated contracts the Scaffolder produces — no deploy step here.
 
 ### Universal Account Dashboard — `/app`
+
 The connected Magic wallet's home: unified balance card with per-chain breakdown, account-status card (EOA vs. upgraded with a link to run the upgrade), and quick-action cards to every module.
 
 ## 🔬 How it works

@@ -1,4 +1,4 @@
-import { UniversalAccount } from "@particle-network/universal-account-sdk";
+import { UniversalAccount, UNIVERSAL_ACCOUNT_VERSION } from "@particle-network/universal-account-sdk";
 
 // Particle project credentials are publishable identifiers for a client-side
 // SDK (not secrets) — same VITE_* public-env convention as chains.ts/contracts.ts.
@@ -27,7 +27,11 @@ export function getUniversalAccount(ownerAddress: `0x${string}`): UniversalAccou
       projectAppUuid: PROJECT_APP_UUID,
       smartAccountOptions: {
         name: "CRUZ",
-        version: "1.0.0",
+        // Match the SDK's own protocol version rather than an arbitrary app
+        // version string — this field is read by the SDK/backend to decide
+        // feature support (e.g. assertSupportedChain's error messages embed
+        // it directly), not just a cosmetic label.
+        version: UNIVERSAL_ACCOUNT_VERSION,
         ownerAddress,
         // EIP-7702 mode: the EOA address itself becomes the Universal Account,
         // rather than a separate counterfactual smart-account address.

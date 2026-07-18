@@ -13,8 +13,10 @@ import { Route as ScaffolderRouteImport } from './routes/scaffolder'
 import { Route as InspectorRouteImport } from './routes/inspector'
 import { Route as EditorRouteImport } from './routes/editor'
 import { Route as ComposerRouteImport } from './routes/composer'
+import { Route as BuilderRouteImport } from './routes/builder'
 import { Route as AppRouteImport } from './routes/app'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiAiRouteImport } from './routes/api.ai'
 
 const ScaffolderRoute = ScaffolderRouteImport.update({
   id: '/scaffolder',
@@ -36,6 +38,11 @@ const ComposerRoute = ComposerRouteImport.update({
   path: '/composer',
   getParentRoute: () => rootRouteImport,
 } as any)
+const BuilderRoute = BuilderRouteImport.update({
+  id: '/builder',
+  path: '/builder',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AppRoute = AppRouteImport.update({
   id: '/app',
   path: '/app',
@@ -46,55 +53,85 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAiRoute = ApiAiRouteImport.update({
+  id: '/api/ai',
+  path: '/api/ai',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/app': typeof AppRoute
+  '/builder': typeof BuilderRoute
   '/composer': typeof ComposerRoute
   '/editor': typeof EditorRoute
   '/inspector': typeof InspectorRoute
   '/scaffolder': typeof ScaffolderRoute
+  '/api/ai': typeof ApiAiRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/app': typeof AppRoute
+  '/builder': typeof BuilderRoute
   '/composer': typeof ComposerRoute
   '/editor': typeof EditorRoute
   '/inspector': typeof InspectorRoute
   '/scaffolder': typeof ScaffolderRoute
+  '/api/ai': typeof ApiAiRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/app': typeof AppRoute
+  '/builder': typeof BuilderRoute
   '/composer': typeof ComposerRoute
   '/editor': typeof EditorRoute
   '/inspector': typeof InspectorRoute
   '/scaffolder': typeof ScaffolderRoute
+  '/api/ai': typeof ApiAiRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/app' | '/composer' | '/editor' | '/inspector' | '/scaffolder'
-  fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/app' | '/composer' | '/editor' | '/inspector' | '/scaffolder'
-  id:
-    | '__root__'
     | '/'
     | '/app'
+    | '/builder'
     | '/composer'
     | '/editor'
     | '/inspector'
     | '/scaffolder'
+    | '/api/ai'
+  fileRoutesByTo: FileRoutesByTo
+  to:
+    | '/'
+    | '/app'
+    | '/builder'
+    | '/composer'
+    | '/editor'
+    | '/inspector'
+    | '/scaffolder'
+    | '/api/ai'
+  id:
+    | '__root__'
+    | '/'
+    | '/app'
+    | '/builder'
+    | '/composer'
+    | '/editor'
+    | '/inspector'
+    | '/scaffolder'
+    | '/api/ai'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRoute
+  BuilderRoute: typeof BuilderRoute
   ComposerRoute: typeof ComposerRoute
   EditorRoute: typeof EditorRoute
   InspectorRoute: typeof InspectorRoute
   ScaffolderRoute: typeof ScaffolderRoute
+  ApiAiRoute: typeof ApiAiRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -127,6 +164,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ComposerRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/builder': {
+      id: '/builder'
+      path: '/builder'
+      fullPath: '/builder'
+      preLoaderRoute: typeof BuilderRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/app': {
       id: '/app'
       path: '/app'
@@ -141,16 +185,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/ai': {
+      id: '/api/ai'
+      path: '/api/ai'
+      fullPath: '/api/ai'
+      preLoaderRoute: typeof ApiAiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRoute,
+  BuilderRoute: BuilderRoute,
   ComposerRoute: ComposerRoute,
   EditorRoute: EditorRoute,
   InspectorRoute: InspectorRoute,
   ScaffolderRoute: ScaffolderRoute,
+  ApiAiRoute: ApiAiRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

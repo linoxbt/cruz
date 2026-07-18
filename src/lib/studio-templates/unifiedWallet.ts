@@ -4,10 +4,29 @@
 // hands off to CRUZ's Contract Editor rather than shipping a
 // second deploy path.
 
+import { buildUniversalAccountModule, UNIVERSAL_ACCOUNT_MODULE_PATH } from "./universalAccountInit";
+
 export interface ScaffoldConfig {
   projectName: string;
   embeddedWallet: boolean;
   gasSponsorship: boolean;
+}
+
+// `projectName` is free-text user input that gets spliced into generated
+// source (index.html, App.tsx) at generation time — unescaped, it's a stored
+// HTML/script-injection point in the app's own output (a `</title><script>`
+// payload becomes a live tag in the shipped index.html; a `"` breaks out of a
+// JS string literal in App.tsx). Neutralize the characters that matter in
+// HTML/JSX text and JS string-literal contexts.
+function escapeForGeneratedSource(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;")
+    .replace(/\{/g, "&#123;")
+    .replace(/\}/g, "&#125;");
 }
 
 const TIP_JAR_CONTRACT = `// SPDX-License-Identifier: MIT
@@ -86,24 +105,8 @@ ${cfg.embeddedWallet ? "\n# Magic embedded wallet — dashboard.magic.link\nVITE
 
 function appTsx(cfg: ScaffoldConfig): string {
   return `import { useState } from "react";
-import { UniversalAccount } from "@particle-network/universal-account-sdk";
-import { Wallet } from "ethers";
-${cfg.embeddedWallet ? 'import { Magic } from "magic-sdk";\n' : ""}
-// Demo owner key for local testing only — replace with your real wallet/embedded-wallet flow.
-const wallet = Wallet.createRandom();
-
-const ua = new UniversalAccount({
-  projectId: import.meta.env.VITE_PARTICLE_PROJECT_ID,
-  projectClientKey: import.meta.env.VITE_PARTICLE_CLIENT_KEY,
-  projectAppUuid: import.meta.env.VITE_PARTICLE_APP_ID,
-  smartAccountOptions: {
-    name: "${cfg.projectName}",
-    version: "1.0.0",
-    ownerAddress: wallet.address,
-    useEIP7702: true,
-  },
-});
-${cfg.embeddedWallet ? "\nconst magic = new Magic(import.meta.env.VITE_MAGIC_PUBLISHABLE_KEY);\n" : ""}
+import { ua } from "./lib/universalAccount";
+${cfg.embeddedWallet ? 'import { Magic } from "magic-sdk";\n' : ""}${cfg.embeddedWallet ? "\nconst magic = new Magic(import.meta.env.VITE_MAGIC_PUBLISHABLE_KEY);\n" : ""}
 export default function App() {
   const [balance, setBalance] = useState<number | null>(null);
 
@@ -114,7 +117,7 @@ export default function App() {
 
   return (
     <div style={{ fontFamily: "monospace", padding: 24 }}>
-      <h1>${cfg.projectName}</h1>
+      <h1>${escapeForGeneratedSource(cfg.projectName)}</h1>
       <p>Unified balance across chains, one address, no bridging.</p>
       <button onClick={fetchBalance}>Fetch unified balance</button>
       {balance !== null && <p>Unified balance: \${balance.toFixed(2)}</p>}
@@ -150,6 +153,7 @@ export function buildUnifiedWalletTemplate(config: ScaffoldConfig): Record<strin
     "package.json": packageJson(config),
     ".env.example": envExample(config),
     "README.md": README(config),
+    [UNIVERSAL_ACCOUNT_MODULE_PATH]: buildUniversalAccountModule({ projectName: config.projectName }),
     "src/App.tsx": appTsx(config),
     "src/main.tsx": `import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
@@ -163,7 +167,7 @@ createRoot(document.getElementById("root")!).render(
 `,
     "index.html": `<!doctype html>
 <html>
-  <head><meta charset="utf-8" /><title>${config.projectName}</title></head>
+  <head><meta charset="utf-8" /><title>${escapeForGeneratedSource(config.projectName)}</title></head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>

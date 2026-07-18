@@ -2,8 +2,8 @@ import { cn } from "@/lib/utils";
 
 // CRUZ brand mark: two crossing arcs inside a near-square — a stylized
 // cross suggesting cross-chain traversal, in the violet accent with a mint
-// counter-arc. Pure SVG so it scales crisply. Distinct from DevStation's
-// terminal-chevron mark — no amber, no teal underscore.
+// counter-arc. Pure SVG so it scales crisply. Distinct from the underlying
+// template's terminal-chevron mark — no amber, no teal underscore.
 export function LogoMark({ className }: { className?: string }) {
   return (
     <svg

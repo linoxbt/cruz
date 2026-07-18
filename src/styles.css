@@ -81,7 +81,7 @@
 :root {
   --radius: 3px;
 
-  /* Ink navy base — deeper and cooler than DevStation's terminal black. */
+  /* Ink navy base — deeper and cooler than the underlying template's terminal black. */
   --background: oklch(0.14 0.02 270);
   --surface: oklch(0.175 0.022 270);
   --surface-2: oklch(0.215 0.024 270);

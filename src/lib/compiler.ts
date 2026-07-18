@@ -50,6 +50,11 @@ interface CompileRequest {
 let nextId = 0;
 let worker: Worker | null = null;
 
+// A hung/crashed worker (e.g. a stalled fetch of the solc binary) otherwise
+// leaves compile()'s promise pending forever, with no way for the caller to
+// recover short of a full page reload.
+const COMPILE_TIMEOUT_MS = 45_000;
+
 function getWorker(): Worker {
   if (!worker) {
     // CLASSIC worker (not module): solc's soljson bundle is loaded with
@@ -71,6 +76,15 @@ export function compile({
   const w = getWorker();
 
   return new Promise((resolve, reject) => {
+    const timeoutId = setTimeout(() => {
+      w.removeEventListener("message", handler);
+      // The worker is unresponsive — terminate it so the *next* compile()
+      // gets a fresh one instead of hanging on the same stuck instance.
+      w.terminate();
+      worker = null;
+      reject(new Error("Compiler timed out — the solc worker didn't respond in time. Try again."));
+    }, COMPILE_TIMEOUT_MS);
+
     const handler = (
       e: MessageEvent<{
         id: number;
@@ -87,6 +101,7 @@ export function compile({
       }>,
     ) => {
       if (e.data.id !== id) return;
+      clearTimeout(timeoutId);
       w.removeEventListener("message", handler);
 
       if (e.data.type === "error") {

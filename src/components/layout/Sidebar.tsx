@@ -1,11 +1,11 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Home, Code2, ScanSearch, Waypoints, PackagePlus, Sun, Moon, X } from "lucide-react";
+import { Home, Sun, Moon, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { WalletPanel } from "@/components/web3/WalletPanel";
 import { LogoMark } from "@/components/shared/Logo";
 import { useUi } from "@/lib/ui-state";
 import { useTheme } from "@/lib/theme";
-import { CRUZ_MODULES } from "@/lib/studio/manifest";
+import { CRUZ_MODULES, CRUZ_MODULE_ICONS } from "@/lib/studio/manifest";
 
 // CRUZ is single-mode: one nav, derived from the module manifest. No network
 // selector (only one chain — Arbitrum One), no mode switching. Slimmer
@@ -15,14 +15,7 @@ const NAV = [
   ...CRUZ_MODULES.map((m) => ({
     to: m.path,
     label: m.label,
-    icon:
-      m.id === "inspector"
-        ? ScanSearch
-        : m.id === "composer"
-          ? Waypoints
-          : m.id === "scaffolder"
-            ? PackagePlus
-            : Code2,
+    icon: CRUZ_MODULE_ICONS[m.id],
   })),
 ];
 

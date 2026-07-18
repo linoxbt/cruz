@@ -21,11 +21,15 @@ export function WalletPanel() {
   const [copied, setCopied] = useState(false);
   const [showConnect, setShowConnect] = useState(false);
 
-  const copyAddr = () => {
+  const copyAddr = async () => {
     if (!address) return;
-    navigator.clipboard.writeText(address);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+    try {
+      await navigator.clipboard.writeText(address);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      /* clipboard permission denied — copied stays false, no false-positive checkmark */
+    }
   };
 
   if (!isConnected || !address) {

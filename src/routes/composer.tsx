@@ -25,14 +25,15 @@ function ComposerPage() {
       <div className="space-y-6 p-6">
         {!canCompose && (
           <p className="font-mono text-xs text-warning">
-            Executing needs a connected CRUZ wallet (Magic) — same requirement as the Account Inspector's
-            upgrade flow) — you can still compose and export without it.
+            Previewing and executing need a connected CRUZ wallet (Magic) — same requirement as the
+            Account Inspector's upgrade flow. You can still fill out a transaction and export it as
+            a snippet without connecting.
           </p>
         )}
 
         <div className="grid gap-4 lg:grid-cols-2">
           <div className="space-y-4">
-            <AssetPicker busy={busy} onCompose={preview} />
+            <AssetPicker busy={busy} disabled={!canCompose} onCompose={preview} />
             <ExportCodePanel input={lastInput} />
           </div>
           <PreviewPanel

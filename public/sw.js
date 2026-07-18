@@ -1,4 +1,4 @@
-// DevStation service worker. Kept deliberately simple: it exists mainly to make
+// CRUZ service worker. Kept deliberately simple: it exists mainly to make
 // the app installable ("Add to Home Screen") and to give a fast app-shell.
 //
 // Strategy:
@@ -8,7 +8,7 @@
 //  - Everything else (RPC, explorer API, /api/*): straight to the network,
 //    never cached, so live chain data is always fresh.
 
-const VERSION = "devstation-v1";
+const VERSION = "cruz-v1";
 const SHELL = `${VERSION}-shell`;
 const ASSETS = `${VERSION}-assets`;
 const OFFLINE_URL = "/";
