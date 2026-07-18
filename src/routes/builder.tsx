@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { AlertTriangle, MessageSquare } from "lucide-react";
+import { AlertTriangle, Download, MessageSquare, RotateCcw, Settings } from "lucide-react";
+import { downloadZip } from "@/lib/zip";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -104,8 +105,8 @@ function BuilderPage() {
         subtitle="Describe an app and an AI agent builds it — live file tree, diff review, and a real sandboxed preview, before anything ships."
       />
       <div className="space-y-4 p-6">
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="min-w-[200px] flex-1">
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end sm:gap-3">
+          <div className="w-full sm:min-w-[200px] sm:flex-1">
             <Label className="font-mono text-xs">Project name</Label>
             <Input
               value={projectName}
@@ -114,17 +115,45 @@ function BuilderPage() {
               className="mt-1 font-mono text-xs"
             />
           </div>
-          <Button variant="outline" onClick={() => setConversationsOpen((o) => !o)}>
-            <MessageSquare className="h-3.5 w-3.5" /> Conversations
-          </Button>
-          <Button variant="outline" onClick={() => setSettingsOpen((o) => !o)}>
-            AI settings
-          </Button>
-          {hasApplied && (
-            <Button variant="outline" onClick={agent.reset}>
-              Start over
+          {/* Icon-only below sm so a long label (esp. "Conversations") can
+              never overflow onto/over the project name field on narrow
+              screens — labels come back once there's room for them. */}
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setConversationsOpen((o) => !o)}
+              aria-label="Conversations"
+            >
+              <MessageSquare className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Conversations</span>
             </Button>
-          )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSettingsOpen((o) => !o)}
+              aria-label="AI settings"
+            >
+              <Settings className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">AI settings</span>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => downloadZip(displayFiles, projectName)}
+              disabled={Object.keys(displayFiles).length === 0}
+              aria-label="Download ZIP"
+            >
+              <Download className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Download ZIP</span>
+            </Button>
+            {hasApplied && (
+              <Button variant="outline" size="sm" onClick={agent.reset} aria-label="Start over">
+                <RotateCcw className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Start over</span>
+              </Button>
+            )}
+          </div>
         </div>
 
         {conversationsOpen && (

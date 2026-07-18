@@ -1,5 +1,6 @@
-import { Plus, Trash2 } from "lucide-react";
+import { Loader2, Plus, Trash2 } from "lucide-react";
 import { useConversations } from "@/lib/studio-ai/conversations";
+import { useAgentRuntime } from "@/lib/studio-ai/agentRuntime";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -24,6 +25,7 @@ function relativeTime(ms: number): string {
 export function ConversationList({ activeId, onSelect, onCreate }: Props) {
   const conversations = useConversations((s) => s.conversations);
   const remove = useConversations((s) => s.remove);
+  const runs = useAgentRuntime((s) => s.runs);
 
   const sorted = [...conversations].sort((a, b) => b.updatedAt - a.updatedAt);
 
@@ -40,7 +42,9 @@ export function ConversationList({ activeId, onSelect, onCreate }: Props) {
       </div>
       <div className="max-h-56 overflow-y-auto p-1">
         {sorted.length === 0 && (
-          <p className="p-2 font-mono text-[11px] text-meta">No conversations yet — start one below.</p>
+          <p className="p-2 font-mono text-[11px] text-meta">
+            No conversations yet — start one below.
+          </p>
         )}
         {sorted.map((c) => (
           <div
@@ -52,9 +56,19 @@ export function ConversationList({ activeId, onSelect, onCreate }: Props) {
                 : "text-muted-foreground hover:bg-surface-2 hover:text-foreground",
             )}
           >
-            <button onClick={() => onSelect(c.id)} className="min-w-0 flex-1 truncate text-left">
-              <span className="block truncate">{c.title}</span>
-              <span className="block text-[10px] text-meta">{relativeTime(c.updatedAt)}</span>
+            <button
+              onClick={() => onSelect(c.id)}
+              className="flex min-w-0 flex-1 items-center gap-1.5 text-left"
+            >
+              <span className="min-w-0 flex-1">
+                <span className="block truncate">{c.title}</span>
+                <span className="block text-[10px] text-meta">{relativeTime(c.updatedAt)}</span>
+              </span>
+              {runs[c.id]?.running && (
+                <span title="Building…">
+                  <Loader2 className="h-3 w-3 shrink-0 animate-spin text-primary" />
+                </span>
+              )}
             </button>
             <button
               onClick={(e) => {

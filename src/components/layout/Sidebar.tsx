@@ -6,6 +6,7 @@ import { LogoMark } from "@/components/shared/Logo";
 import { useUi } from "@/lib/ui-state";
 import { useTheme } from "@/lib/theme";
 import { CRUZ_MODULES, CRUZ_MODULE_ICONS } from "@/lib/studio/manifest";
+import { useAgentRuntime } from "@/lib/studio-ai/agentRuntime";
 
 // CRUZ is single-mode: one nav, derived from the module manifest. No network
 // selector (only one chain — Arbitrum One), no mode switching. Slimmer
@@ -24,6 +25,10 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const path = useRouterState({ select: (r) => r.location.pathname });
   const isActive = (to: string, exact?: boolean) =>
     exact ? path === to : path === to || path.startsWith(to + "/");
+  // The AI Builder's generation loop keeps running (see agentRuntime.ts) even
+  // after navigating away from /builder — surface that here so it isn't
+  // invisible while you're on another page.
+  const builderRunning = useAgentRuntime((s) => Object.values(s.runs).some((r) => r.running));
 
   return (
     <>
@@ -66,6 +71,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
               icon={item.icon}
               active={isActive(item.to, (item as { exact?: boolean }).exact)}
               onClick={onNavigate}
+              busy={item.to === "/builder" && builderRunning}
             />
           ))}
         </div>
@@ -114,12 +120,14 @@ function SidebarLink({
   icon: Icon,
   active,
   onClick,
+  busy,
 }: {
   to: string;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   active?: boolean;
   onClick?: () => void;
+  busy?: boolean;
 }) {
   return (
     <Link
@@ -133,7 +141,13 @@ function SidebarLink({
       )}
     >
       <Icon className="h-4 w-4" />
-      {label}
+      <span className="flex-1">{label}</span>
+      {busy && (
+        <span
+          className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-primary"
+          title="Still building in the background"
+        />
+      )}
     </Link>
   );
 }

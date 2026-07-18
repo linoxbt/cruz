@@ -9,6 +9,7 @@ import { CodeBlock } from "@/components/shared/CodeBlock";
 import { useEditorIntake } from "@/lib/editor-intake";
 import { pushToGithubRepo, deployToVercel, deployToNetlify } from "@/lib/api/studio.functions";
 import { UNIFIED_WALLET_TEMPLATE } from "@/lib/studio-templates/unifiedWallet";
+import { downloadZip } from "@/lib/zip";
 
 export function ResultPanel({
   files,
@@ -34,15 +35,10 @@ export function ResultPanel({
   const [netlifyResult, setNetlifyResult] = useState<{ ok: boolean; message: string } | null>(null);
 
   const downloadArchive = () => {
-    // No secrets required — a plain JSON manifest of the generated files,
-    // usable when the user doesn't want to hand over a GitHub/Vercel token.
-    const blob = new Blob([JSON.stringify(files, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${projectName || "cruz-starter"}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+    // No secrets required — a real, runnable .zip of the generated project
+    // (npm install && npm run dev works locally), for when the user doesn't
+    // want to hand over a GitHub/Vercel/Netlify token.
+    downloadZip(files, projectName || "cruz-starter");
   };
 
   const pushGithub = async () => {
@@ -115,7 +111,7 @@ export function ResultPanel({
         </ul>
         <div className="mt-3 flex flex-wrap gap-2">
           <Button variant="outline" onClick={downloadArchive}>
-            Download as JSON
+            Download ZIP
           </Button>
           {UNIFIED_WALLET_TEMPLATE.hasDemoContract && (
             <Button variant="outline" onClick={openDemoContractInEditor}>
