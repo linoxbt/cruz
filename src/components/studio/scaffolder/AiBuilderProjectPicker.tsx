@@ -1,6 +1,5 @@
 import { Bot } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useConversations } from "@/lib/studio-ai/conversations";
 import { cn } from "@/lib/utils";
@@ -51,25 +50,26 @@ export function AiBuilderProjectPicker({
   return (
     <div className="grid gap-4 sm:grid-cols-2">
       {built.map((c) => (
-        <Card
+        <button
           key={c.id}
-          className={cn("cursor-pointer transition", selectedId === c.id && "border-primary")}
           onClick={() => onSelect(c.id)}
+          className={cn(
+            "rounded-sm border border-border bg-surface p-4 text-left transition hover:border-primary/50",
+            selectedId === c.id && "border-primary",
+          )}
         >
-          <CardHeader>
-            <Bot className="h-6 w-6 text-primary" />
-            <CardTitle className="text-base">{c.projectName || c.title}</CardTitle>
-            <CardDescription>
-              {Object.keys(c.files).length} file{Object.keys(c.files).length !== 1 ? "s" : ""} ·
-              updated {relativeTime(c.updatedAt)}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <span className="font-mono text-[10px] uppercase tracking-wider text-meta">
-              {c.title}
-            </span>
-          </CardContent>
-        </Card>
+          <Bot className="h-6 w-6 text-primary" />
+          <div className="mt-2 font-display text-base font-bold text-foreground">
+            {c.projectName || c.title}
+          </div>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {Object.keys(c.files).length} file{Object.keys(c.files).length !== 1 ? "s" : ""} ·
+            updated {relativeTime(c.updatedAt)}
+          </p>
+          <span className="mt-2 block font-mono text-[10px] uppercase tracking-wider text-meta">
+            {c.title}
+          </span>
+        </button>
       ))}
     </div>
   );

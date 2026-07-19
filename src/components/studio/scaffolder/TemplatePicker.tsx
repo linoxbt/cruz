@@ -1,5 +1,4 @@
 import { PackagePlus } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { UNIFIED_WALLET_TEMPLATE } from "@/lib/studio-templates/unifiedWallet";
 import { cn } from "@/lib/utils";
 
@@ -17,24 +16,23 @@ export function TemplatePicker({
   return (
     <div className="grid gap-4 sm:grid-cols-2">
       {templates.map((t) => (
-        <Card
+        <button
           key={t.id}
-          className={cn("cursor-pointer transition", selected === t.id && "border-primary")}
           onClick={() => onSelect(t.id)}
+          className={cn(
+            "rounded-sm border border-border bg-surface p-4 text-left transition hover:border-primary/50",
+            selected === t.id && "border-primary",
+          )}
         >
-          <CardHeader>
-            <PackagePlus className="h-6 w-6 text-primary" />
-            <CardTitle className="text-base">{t.label}</CardTitle>
-            <CardDescription>{t.description}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {t.hasDemoContract && (
-              <span className="font-mono text-[10px] uppercase tracking-wider text-meta">
-                Includes a demo contract
-              </span>
-            )}
-          </CardContent>
-        </Card>
+          <PackagePlus className="h-6 w-6 text-primary" />
+          <div className="mt-2 font-display text-base font-bold text-foreground">{t.label}</div>
+          <p className="mt-1 text-sm text-muted-foreground">{t.description}</p>
+          {t.hasDemoContract && (
+            <span className="mt-2 block font-mono text-[10px] uppercase tracking-wider text-meta">
+              Includes a demo contract
+            </span>
+          )}
+        </button>
       ))}
     </div>
   );

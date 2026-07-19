@@ -1,10 +1,24 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Bot, Download, MessageSquare, PackagePlus, Trash2 } from "lucide-react";
+import { useState } from "react";
+import {
+  Bot,
+  CheckCircle2,
+  ChevronDown,
+  Download,
+  History,
+  Loader2,
+  MessageSquare,
+  PackagePlus,
+  Trash2,
+  XCircle,
+} from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { useConversations } from "@/lib/studio-ai/conversations";
+import { useConversations, type Conversation } from "@/lib/studio-ai/conversations";
 import { downloadZip } from "@/lib/zip";
+import { bundleForPreview } from "@/lib/studio-ai/livePreviewBundler";
+import { checkDependencyVersions } from "@/lib/api/registry.functions";
+import { formatElapsed } from "@/components/studio/builder/BuildSummaryCard";
 
 export const Route = createFileRoute("/projects")({
   head: () => ({ meta: [{ title: "My Projects — CRUZ" }] }),
@@ -21,6 +35,32 @@ function relativeTime(ms: number): string {
   return `${Math.floor(hours / 24)}d ago`;
 }
 
+async function runHealthCheck(c: Conversation) {
+  let ok = true;
+  let message = "Bundled successfully.";
+  try {
+    await bundleForPreview(c.files, "src/main.tsx");
+  } catch (e) {
+    ok = false;
+    message = e instanceof Error ? e.message : "Bundling failed.";
+  }
+
+  let outdatedDeps: string[] = [];
+  try {
+    const pkg = JSON.parse(c.files["package.json"] ?? "{}") as {
+      dependencies?: Record<string, string>;
+    };
+    if (pkg.dependencies) {
+      const res = await checkDependencyVersions({ data: { dependencies: pkg.dependencies } });
+      outdatedDeps = res.outdatedDeps;
+    }
+  } catch {
+    /* package.json missing/invalid — skip the dependency check, bundle result still stands */
+  }
+
+  return { checkedAt: Date.now(), ok, message, outdatedDeps };
+}
+
 /** Every AI Builder conversation in one place — built apps (at least one
  *  applied file) and drafts (still just a chat, nothing applied yet) as two
  *  separate lists, so starting five conversations in the Builder doesn't mean
@@ -30,14 +70,32 @@ function ProjectsPage() {
   const conversations = useConversations((s) => s.conversations);
   const select = useConversations((s) => s.select);
   const remove = useConversations((s) => s.remove);
+  const update = useConversations((s) => s.update);
+
+  const [checkingId, setCheckingId] = useState<string | null>(null);
+  const [historyOpenId, setHistoryOpenId] = useState<string | null>(null);
 
   const sorted = [...conversations].sort((a, b) => b.updatedAt - a.updatedAt);
   const built = sorted.filter((c) => Object.keys(c.files).length > 0);
   const drafts = sorted.filter((c) => Object.keys(c.files).length === 0);
 
+  const withTiming = built.filter((c) => c.metrics.startedAt && c.metrics.finishedAt);
+  const avgBuildMs =
+    withTiming.length > 0
+      ? withTiming.reduce((sum, c) => sum + (c.metrics.finishedAt! - c.metrics.startedAt!), 0) /
+        withTiming.length
+      : null;
+
   const openInBuilder = (id: string) => {
     select(id);
     navigate({ to: "/builder" });
+  };
+
+  const checkHealth = async (c: Conversation) => {
+    setCheckingId(c.id);
+    const result = await runHealthCheck(c);
+    update(c.id, { lastHealthCheck: result });
+    setCheckingId(null);
   };
 
   return (
@@ -60,6 +118,35 @@ function ProjectsPage() {
           </div>
         )}
 
+        {avgBuildMs !== null && (
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="rounded-sm border border-border bg-surface p-4">
+              <div className="font-mono text-[10px] uppercase tracking-wider text-meta">
+                Avg. time to first build
+              </div>
+              <div className="mt-1 font-display text-lg font-bold text-foreground">
+                {formatElapsed(avgBuildMs)}
+              </div>
+            </div>
+            <div className="rounded-sm border border-border bg-surface p-4">
+              <div className="font-mono text-[10px] uppercase tracking-wider text-meta">
+                Built projects
+              </div>
+              <div className="mt-1 font-display text-lg font-bold text-foreground">
+                {built.length}
+              </div>
+            </div>
+            <div className="rounded-sm border border-border bg-surface p-4">
+              <div className="font-mono text-[10px] uppercase tracking-wider text-meta">
+                Total fix iterations
+              </div>
+              <div className="mt-1 font-display text-lg font-bold text-foreground">
+                {built.reduce((sum, c) => sum + c.metrics.iterations, 0)}
+              </div>
+            </div>
+          </div>
+        )}
+
         {built.length > 0 && (
           <section>
             <h2 className="mb-3 font-mono text-[11px] uppercase tracking-widest text-meta">
@@ -67,8 +154,8 @@ function ProjectsPage() {
             </h2>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {built.map((c) => (
-                <Card key={c.id}>
-                  <CardContent className="space-y-3 p-4">
+                <div key={c.id} className="rounded-sm border border-border bg-surface p-4">
+                  <div className="space-y-3">
                     <div>
                       <div className="font-display text-sm font-bold text-foreground">
                         {c.projectName || c.title}
@@ -78,6 +165,29 @@ function ProjectsPage() {
                         {Object.keys(c.files).length !== 1 ? "s" : ""} · updated{" "}
                         {relativeTime(c.updatedAt)}
                       </div>
+                      {c.lastHealthCheck && (
+                        <div
+                          className={`mt-2 flex items-start gap-1.5 font-mono text-[10px] ${
+                            c.lastHealthCheck.ok ? "text-success" : "text-destructive"
+                          }`}
+                        >
+                          {c.lastHealthCheck.ok ? (
+                            <CheckCircle2 className="mt-0.5 h-3 w-3 shrink-0" />
+                          ) : (
+                            <XCircle className="mt-0.5 h-3 w-3 shrink-0" />
+                          )}
+                          <span>
+                            {c.lastHealthCheck.message} · checked{" "}
+                            {relativeTime(c.lastHealthCheck.checkedAt)}
+                            {c.lastHealthCheck.outdatedDeps.length > 0 && (
+                              <span className="block text-warning">
+                                {c.lastHealthCheck.outdatedDeps.length} dependency version(s)
+                                behind: {c.lastHealthCheck.outdatedDeps.join(", ")}
+                              </span>
+                            )}
+                          </span>
+                        </div>
+                      )}
                     </div>
                     <div className="flex flex-wrap gap-2">
                       <Button variant="outline" size="sm" onClick={() => openInBuilder(c.id)}>
@@ -100,6 +210,31 @@ function ProjectsPage() {
                       <Button
                         variant="outline"
                         size="sm"
+                        onClick={() => void checkHealth(c)}
+                        disabled={checkingId === c.id}
+                      >
+                        {checkingId === c.id ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                        )}
+                        Check health
+                      </Button>
+                      {c.changelog.length > 0 && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setHistoryOpenId((id) => (id === c.id ? null : c.id))}
+                        >
+                          <History className="h-3.5 w-3.5" /> History ({c.changelog.length})
+                          <ChevronDown
+                            className={`h-3 w-3 transition-transform ${historyOpenId === c.id ? "rotate-180" : ""}`}
+                          />
+                        </Button>
+                      )}
+                      <Button
+                        variant="outline"
+                        size="sm"
                         onClick={() => {
                           if (window.confirm(`Delete "${c.projectName || c.title}"?`)) remove(c.id);
                         }}
@@ -107,8 +242,21 @@ function ProjectsPage() {
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </div>
-                  </CardContent>
-                </Card>
+                    {historyOpenId === c.id && (
+                      <ul className="space-y-1.5 border-t border-border pt-2">
+                        {c.changelog.map((entry) => (
+                          <li
+                            key={entry.id}
+                            className="font-mono text-[10px] text-muted-foreground"
+                          >
+                            <span className="text-meta">{relativeTime(entry.timestamp)}</span> —{" "}
+                            {entry.summary}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </div>
               ))}
             </div>
           </section>
@@ -121,8 +269,11 @@ function ProjectsPage() {
             </h2>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {drafts.map((c) => (
-                <Card key={c.id} className="border-dashed">
-                  <CardContent className="space-y-3 p-4">
+                <div
+                  key={c.id}
+                  className="rounded-sm border border-dashed border-border bg-surface p-4"
+                >
+                  <div className="space-y-3">
                     <div>
                       <div className="font-display text-sm font-bold text-foreground">
                         {c.title}
@@ -145,8 +296,8 @@ function ProjectsPage() {
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               ))}
             </div>
           </section>

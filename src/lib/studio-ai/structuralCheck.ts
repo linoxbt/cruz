@@ -69,7 +69,11 @@ export function runStructuralChecks(files: Record<string, string>): StructuralFi
         }
       }
     } catch {
-      findings.push({ path: "package.json", severity: "error", message: "package.json is not valid JSON." });
+      findings.push({
+        path: "package.json",
+        severity: "error",
+        message: "package.json is not valid JSON.",
+      });
     }
   }
 
@@ -79,11 +83,94 @@ export function runStructuralChecks(files: Record<string, string>): StructuralFi
     if (err) findings.push({ path, severity: "error", message: err });
   }
 
+  for (const [path, content] of Object.entries(files)) {
+    if (!/\.(ts|tsx|js|jsx)$/.test(path)) continue;
+    findings.push(...checkRiskyPatterns(path, content));
+  }
+
   for (const path of findUnauthorizedUaUsage(files)) {
     findings.push({
       path,
       severity: "warning",
-      message: 'Instantiates UniversalAccount directly instead of importing { ua } from "./lib/universalAccount".',
+      message:
+        'Instantiates UniversalAccount directly instead of importing { ua } from "./lib/universalAccount".',
+    });
+  }
+
+  return findings;
+}
+
+// Cheap regex-based risky-pattern flags — the same "surface it for human
+// review, don't silently accept or silently fix" ethos as the dependency/
+// install-script checks above, just scoped to code patterns instead of
+// package.json. Not static analysis (no AST, no data-flow) — a fast,
+// good-enough net for the class of thing worth a second look before Apply.
+const DEPRECATED_REACT_APIS = [
+  "componentWillMount",
+  "componentWillReceiveProps",
+  "componentWillUpdate",
+  "findDOMNode",
+];
+
+// A handful of well-known secret-key prefixes/shapes, plus a generic
+// "api_key = <long opaque token>" assignment pattern. Deliberately
+// conservative (few false positives) rather than exhaustive.
+const SECRET_PATTERNS: RegExp[] = [
+  /sk-[a-zA-Z0-9]{20,}/, // OpenAI/0G-style secret keys
+  /sk-ant-[a-zA-Z0-9-]{20,}/, // Anthropic
+  /AKIA[0-9A-Z]{16}/, // AWS access key id
+  /-----BEGIN [A-Z ]*PRIVATE KEY-----/, // PEM private key
+  /\b(api[_-]?key|secret|token)\s*[:=]\s*["'][A-Za-z0-9_-]{20,}["']/i,
+];
+
+function checkRiskyPatterns(path: string, content: string): StructuralFinding[] {
+  const findings: StructuralFinding[] = [];
+
+  if (/\beval\s*\(/.test(content)) {
+    findings.push({
+      path,
+      severity: "warning",
+      securityRelevant: true,
+      message: "Uses eval() — arbitrary code execution risk if the input is ever user-controlled.",
+    });
+  }
+
+  if (/dangerouslySetInnerHTML/.test(content)) {
+    findings.push({
+      path,
+      severity: "warning",
+      securityRelevant: true,
+      message:
+        "Uses dangerouslySetInnerHTML — XSS risk unless the HTML is sanitized or fully trusted.",
+    });
+  }
+
+  for (const re of SECRET_PATTERNS) {
+    if (re.test(content)) {
+      findings.push({
+        path,
+        severity: "warning",
+        securityRelevant: true,
+        message: "Looks like a hardcoded secret/API key — use an environment variable instead.",
+      });
+      break; // one flag per file is enough signal, avoid repetitive noise
+    }
+  }
+
+  if (/["'`]http:\/\/(?!localhost|127\.0\.0\.1)/.test(content)) {
+    findings.push({
+      path,
+      severity: "warning",
+      message: "Uses a plain http:// URL — prefer https:// for network requests.",
+    });
+  }
+
+  const deprecated = DEPRECATED_REACT_APIS.find((api) => content.includes(api));
+  if (deprecated) {
+    findings.push({
+      path,
+      severity: "warning",
+      message: `Uses the deprecated React API "${deprecated}" — prefer its modern equivalent.`,
     });
   }
 
@@ -176,7 +263,8 @@ function checkBalance(content: string): string | null {
     }
   }
 
-  if (state === "sq" || state === "dq") return "Unterminated string literal — file likely got cut off.";
+  if (state === "sq" || state === "dq")
+    return "Unterminated string literal — file likely got cut off.";
   if (state === "template") return "Unterminated template literal — file likely got cut off.";
   if (state === "block-comment") return "Unterminated block comment — file likely got cut off.";
   if (stack.length > 0) return `Unbalanced brackets — ${stack.length} unclosed.`;

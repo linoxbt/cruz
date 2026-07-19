@@ -28,6 +28,90 @@ export interface TimelineItem {
   plan?: AgentPlan;
 }
 
+// The persistent task list a build works through — spec -> scaffold ->
+// implement -> test -> deploy -> monitor — tracked as real state (not just
+// implied by which turn we're on), so the UI can show live per-step status
+// and a reload can resume at the right step instead of restarting.
+export type BuildStepKind = "spec" | "scaffold" | "implement" | "test" | "deploy" | "monitor";
+export type BuildStepStatus = "pending" | "in_progress" | "done" | "failed" | "skipped";
+
+export interface BuildStep {
+  id: string;
+  kind: BuildStepKind;
+  label: string;
+  status: BuildStepStatus;
+  detail?: string;
+  startedAt?: number;
+  finishedAt?: number;
+  /** Retry count for this step specifically (a failed test step retrying
+   *  doesn't restart spec/scaffold). */
+  attempts?: number;
+}
+
+const STEP_LABELS: Record<BuildStepKind, string> = {
+  spec: "Spec",
+  scaffold: "Scaffold",
+  implement: "Implement",
+  test: "Test",
+  deploy: "Deploy",
+  monitor: "Monitor",
+};
+
+export function defaultSteps(): BuildStep[] {
+  return (Object.keys(STEP_LABELS) as BuildStepKind[]).map((kind) => ({
+    id: kind,
+    kind,
+    label: STEP_LABELS[kind],
+    status: "pending",
+  }));
+}
+
+export interface BuildMetrics {
+  startedAt: number | null;
+  finishedAt: number | null;
+  /** Total retry/fix loops across every step (structural-check or bundle-test failures). */
+  iterations: number;
+  testsRun: number;
+  testsPassed: number;
+  /** Total structural/security findings surfaced across the build. */
+  errorsCaught: number;
+}
+
+export function defaultMetrics(): BuildMetrics {
+  return {
+    startedAt: null,
+    finishedAt: null,
+    iterations: 0,
+    testsRun: 0,
+    testsPassed: 0,
+    errorsCaught: 0,
+  };
+}
+
+export interface ChangelogEntry {
+  id: string;
+  timestamp: number;
+  summary: string;
+  filesChanged: string[];
+}
+
+/** A build-time decision the agent is paused on until the user acts —
+ *  "plan" (manual mode's post-spec pause) or "security" (the existing
+ *  new-dependency/install-script review, which applies in both modes). */
+export interface AwaitingApproval {
+  kind: "plan" | "security";
+  detail: string;
+}
+
+export type BuildMode = "auto" | "manual";
+
+export interface HealthCheck {
+  checkedAt: number;
+  ok: boolean;
+  message: string;
+  outdatedDeps: string[];
+}
+
 export interface Conversation {
   id: string;
   title: string;
@@ -37,6 +121,12 @@ export interface Conversation {
   timeline: TimelineItem[];
   messages: ChatMessage[];
   files: Record<string, string>;
+  mode: BuildMode;
+  steps: BuildStep[];
+  metrics: BuildMetrics;
+  changelog: ChangelogEntry[];
+  awaitingApproval: AwaitingApproval | null;
+  lastHealthCheck: HealthCheck | null;
 }
 
 const STORAGE_KEY = "cruz-ai-conversations-v1";
@@ -48,11 +138,26 @@ const MAX_CONVERSATIONS = 30;
 // line) instead of silently keeping it forever.
 export const DEFAULT_PROJECT_NAME = "my-ai-app";
 
+// Fills in the task-list/metrics/changelog fields for conversations
+// persisted before this feature existed, so old localStorage data doesn't
+// need a version bump or migration step.
+function normalize(c: Conversation): Conversation {
+  return {
+    ...c,
+    mode: c.mode ?? "manual",
+    steps: c.steps ?? defaultSteps(),
+    metrics: c.metrics ?? defaultMetrics(),
+    changelog: c.changelog ?? [],
+    awaitingApproval: c.awaitingApproval ?? null,
+    lastHealthCheck: c.lastHealthCheck ?? null,
+  };
+}
+
 function load(): Conversation[] {
   if (typeof localStorage === "undefined") return [];
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as Conversation[]) : [];
+    return raw ? (JSON.parse(raw) as Conversation[]).map(normalize) : [];
   } catch {
     return [];
   }
@@ -100,7 +205,7 @@ function titleFrom(timeline: TimelineItem[], fallback: string): string {
 interface ConversationsStore {
   conversations: Conversation[];
   activeId: string | null;
-  create: (projectName: string) => string;
+  create: (projectName: string, mode: BuildMode) => string;
   select: (id: string) => void;
   update: (id: string, patch: Partial<Omit<Conversation, "id" | "createdAt">>) => void;
   remove: (id: string) => void;
@@ -123,7 +228,7 @@ const initialResolvedActiveId =
 export const useConversations = create<ConversationsStore>((set, get) => ({
   conversations: initial,
   activeId: initialResolvedActiveId,
-  create: (projectName) => {
+  create: (projectName, mode) => {
     const id = newId();
     const now = Date.now();
     const conv: Conversation = {
@@ -135,6 +240,12 @@ export const useConversations = create<ConversationsStore>((set, get) => ({
       timeline: [],
       messages: [],
       files: {},
+      mode,
+      steps: defaultSteps(),
+      metrics: defaultMetrics(),
+      changelog: [],
+      awaitingApproval: null,
+      lastHealthCheck: null,
     };
     const list = [conv, ...get().conversations].slice(0, MAX_CONVERSATIONS);
     persist(list);

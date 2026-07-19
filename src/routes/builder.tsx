@@ -1,23 +1,42 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { AlertTriangle, Download, MessageSquare, RotateCcw, Settings } from "lucide-react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Download,
+  ListChecks,
+  MessageSquare,
+  PanelRightClose,
+  PanelRightOpen,
+  RotateCcw,
+  Settings,
+} from "lucide-react";
+import { usePanelRef, type PanelImperativeHandle } from "react-resizable-panels";
 import { downloadZip } from "@/lib/zip";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { CodeBlock } from "@/components/shared/CodeBlock";
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { AgentChatPanel } from "@/components/studio/builder/AgentChatPanel";
 import { AiSettingsPanel } from "@/components/studio/builder/AiSettingsPanel";
 import { BuilderFileList } from "@/components/studio/builder/BuilderFileList";
+import { BuildSummaryCard } from "@/components/studio/builder/BuildSummaryCard";
 import { ConversationList } from "@/components/studio/builder/ConversationList";
 import { DeployContractPanel } from "@/components/studio/builder/DeployContractPanel";
 import { FileDiffPreview } from "@/components/studio/builder/FileDiffPreview";
 import { LivePreview } from "@/components/studio/builder/LivePreview";
+import { ModePicker } from "@/components/studio/builder/ModePicker";
+import { TaskList } from "@/components/studio/builder/TaskList";
 import { ResultPanel } from "@/components/studio/scaffolder/ResultPanel";
 import { useAppAgent } from "@/hooks/useAppAgent";
 import { useAiSettings, useAiServerStatus } from "@/lib/ai-settings";
-import { useConversations, DEFAULT_PROJECT_NAME } from "@/lib/studio-ai/conversations";
+import {
+  useConversations,
+  DEFAULT_PROJECT_NAME,
+  type BuildMode,
+} from "@/lib/studio-ai/conversations";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/builder")({
@@ -41,13 +60,17 @@ function BuilderPage() {
   const selectConversation = useConversations((s) => s.select);
   const updateConversation = useConversations((s) => s.update);
 
-  // Bootstrap: if there's genuinely nothing yet (first-ever visit), start
-  // one conversation automatically rather than showing an empty state with
-  // no way to type anything.
-  useEffect(() => {
-    if (conversations.length === 0) createConversation(DEFAULT_PROJECT_NAME);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Starting a build always asks Auto vs Manual first (see ModePicker) —
+  // shown in place of the main content whenever there's nothing to resume
+  // yet, whether that's the very first visit or an explicit "+ New".
+  const [showModePicker, setShowModePicker] = useState(conversations.length === 0);
+  const startNew = (mode: BuildMode) => {
+    const id = createConversation(DEFAULT_PROJECT_NAME, mode);
+    selectConversation(id);
+    setShowModePicker(false);
+    setConversationsOpen(false);
+    setActivePath(null);
+  };
 
   const conversation = conversations.find((c) => c.id === activeId) ?? null;
   const projectName = conversation?.projectName ?? DEFAULT_PROJECT_NAME;
@@ -57,11 +80,21 @@ function BuilderPage() {
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [conversationsOpen, setConversationsOpen] = useState(false);
-  const [rightTab, setRightTab] = useState<"files" | "preview">("files");
+  const [tasksOpen, setTasksOpen] = useState(true);
+  const [rightTab, setRightTab] = useState<"files" | "preview" | "history">("files");
   const [activePath, setActivePath] = useState<string | null>(null);
   const [securityAcknowledged, setSecurityAcknowledged] = useState(false);
 
   const agent = useAppAgent(activeId, { projectName });
+
+  const filesPanelRef = usePanelRef();
+  const [filesCollapsed, setFilesCollapsed] = useState(false);
+  const toggleFilesPanel = () => {
+    const handle = filesPanelRef.current as PanelImperativeHandle | null;
+    if (!handle) return;
+    if (handle.isCollapsed()) handle.expand();
+    else handle.collapse();
+  };
 
   // Auto-apply the agent's suggested name (see agentPrompt.ts's
   // SUGGESTED_NAME line) only while the user hasn't already picked one —
@@ -90,12 +123,39 @@ function BuilderPage() {
 
   const securityFindings = agent.pendingFindings.filter((f) => f.securityRelevant);
   const needsSecurityReview = securityFindings.length > 0 && !securityAcknowledged;
+  const awaitingPlanApproval = agent.awaitingApproval?.kind === "plan";
 
   // Reset the acknowledgment whenever a new pending diff arrives — approving
   // one turn's new dependency shouldn't silently carry over to the next.
   useEffect(() => {
     setSecurityAcknowledged(false);
   }, [agent.pendingFiles]);
+
+  if (showModePicker || !conversation) {
+    return (
+      <div>
+        <PageHeader
+          breadcrumb={["CRUZ", "AI Builder"]}
+          title="AI Builder"
+          subtitle="Describe an app and an AI agent builds it — live file tree, diff review, and a real sandboxed preview, before anything ships."
+        />
+        <div className="space-y-4 p-6">
+          {conversations.length > 0 && (
+            <ConversationList
+              activeId={activeId}
+              onSelect={(id) => {
+                selectConversation(id);
+                setShowModePicker(false);
+                setActivePath(null);
+              }}
+              onCreate={() => setShowModePicker(true)}
+            />
+          )}
+          <ModePicker onChoose={startNew} />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -119,6 +179,26 @@ function BuilderPage() {
               never overflow onto/over the project name field on narrow
               screens — labels come back once there's room for them. */}
           <div className="flex flex-wrap gap-2">
+            <span
+              className={cn(
+                "flex items-center rounded-sm border px-2 py-1.5 font-mono text-[10px] uppercase tracking-wider",
+                conversation.mode === "auto"
+                  ? "border-primary/40 text-primary"
+                  : "border-border text-meta",
+              )}
+              title="Build mode (set when this conversation was created)"
+            >
+              {conversation.mode}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setTasksOpen((o) => !o)}
+              aria-label="Task list"
+            >
+              <ListChecks className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Tasks</span>
+            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -165,89 +245,181 @@ function BuilderPage() {
               setActivePath(null);
             }}
             onCreate={() => {
-              const id = createConversation(DEFAULT_PROJECT_NAME);
-              selectConversation(id);
               setConversationsOpen(false);
-              setActivePath(null);
+              setShowModePicker(true);
             }}
           />
         )}
 
         {settingsOpen && <AiSettingsPanel />}
 
-        <div className="grid gap-4 lg:grid-cols-2" style={{ height: "70vh" }}>
-          {/* Chat */}
-          <div className="flex flex-col overflow-hidden rounded-sm border border-border bg-surface">
-            <AgentChatPanel
-              timeline={agent.timeline}
-              running={agent.running}
-              onSend={(prompt, inspirationUrl) =>
-                agent.run(prompt, inspirationUrl ? { inspirationUrl } : undefined)
-              }
-              onStop={agent.stop}
-              disabled={!configured}
-              disabledReason={
-                !configured
-                  ? "Set an AI provider + key (or CRUZ's default AI) in AI settings above to start building."
-                  : undefined
-              }
-            />
+        {tasksOpen && (
+          <div className="rounded-sm border border-border bg-surface">
+            <div className="border-b border-border px-3 py-2 font-mono text-xs uppercase tracking-wider text-meta">
+              Build tasks
+            </div>
+            <TaskList steps={agent.steps} />
           </div>
+        )}
 
-          {/* Files / Preview */}
-          <div className="flex flex-col overflow-hidden rounded-sm border border-border bg-surface">
-            <div className="flex border-b border-border">
-              <button
-                onClick={() => setRightTab("files")}
-                className={cn(
-                  "flex-1 border-b-2 px-3 py-2 font-mono text-xs",
-                  rightTab === "files"
-                    ? "border-primary text-primary"
-                    : "border-transparent text-muted-foreground hover:text-foreground",
-                )}
-              >
-                Files
-              </button>
-              <button
-                onClick={() => setRightTab("preview")}
-                className={cn(
-                  "flex-1 border-b-2 px-3 py-2 font-mono text-xs",
-                  rightTab === "preview"
-                    ? "border-primary text-primary"
-                    : "border-transparent text-muted-foreground hover:text-foreground",
-                )}
-              >
-                Preview
-              </button>
+        {awaitingPlanApproval && (
+          <div className="space-y-2 rounded-sm border border-primary/40 bg-primary/5 p-4">
+            <div className="flex items-center gap-1.5 font-mono text-xs font-bold text-primary">
+              <CheckCircle2 className="h-3.5 w-3.5" /> Manual mode — review the plan above
             </div>
-            <div className="flex-1 overflow-hidden">
-              {rightTab === "files" ? (
-                <div className="flex h-full">
-                  <div className="w-[180px] shrink-0 overflow-y-auto border-r border-border">
-                    <BuilderFileList
-                      files={displayFiles}
-                      activePath={activePath}
-                      onSelect={setActivePath}
-                    />
-                  </div>
-                  <div className="flex-1 overflow-y-auto p-2">
-                    {activePath && displayFiles[activePath] !== undefined ? (
-                      <CodeBlock
-                        code={displayFiles[activePath]}
-                        language={langFor(activePath)}
-                        maxHeight="100%"
-                      />
-                    ) : (
-                      <p className="p-3 font-mono text-xs text-meta">Select a file to view it.</p>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <LivePreview files={displayFiles} />
-              )}
-            </div>
+            <p className="font-mono text-[11px] text-muted-foreground">
+              {agent.awaitingApproval?.detail} No files have been written or checked yet.
+            </p>
+            <Button onClick={agent.approvePlan}>Approve &amp; continue</Button>
           </div>
+        )}
+
+        <div style={{ height: "70vh" }}>
+          <ResizablePanelGroup orientation="horizontal" className="gap-2">
+            <ResizablePanel defaultSize={45} minSize={25}>
+              <div className="flex h-full flex-col overflow-hidden rounded-sm border border-border bg-surface">
+                <AgentChatPanel
+                  timeline={agent.timeline}
+                  running={agent.running}
+                  onSend={(prompt, inspirationUrl) =>
+                    agent.run(prompt, inspirationUrl ? { inspirationUrl } : undefined)
+                  }
+                  onStop={agent.stop}
+                  disabled={!configured || awaitingPlanApproval}
+                  disabledReason={
+                    !configured
+                      ? "Set an AI provider + key (or CRUZ's default AI) in AI settings above to start building."
+                      : awaitingPlanApproval
+                        ? "Approve the plan above before continuing."
+                        : undefined
+                  }
+                />
+              </div>
+            </ResizablePanel>
+            <ResizableHandle withHandle />
+            <ResizablePanel
+              panelRef={filesPanelRef}
+              defaultSize={55}
+              minSize={0}
+              collapsible
+              collapsedSize={0}
+              onResize={() => setFilesCollapsed(!!filesPanelRef.current?.isCollapsed())}
+            >
+              <div className="flex h-full flex-col overflow-hidden rounded-sm border border-border bg-surface">
+                <div className="flex items-center border-b border-border">
+                  <button
+                    onClick={() => setRightTab("files")}
+                    className={cn(
+                      "flex-1 border-b-2 px-3 py-2 font-mono text-xs",
+                      rightTab === "files"
+                        ? "border-primary text-primary"
+                        : "border-transparent text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    Files
+                  </button>
+                  <button
+                    onClick={() => setRightTab("preview")}
+                    className={cn(
+                      "flex-1 border-b-2 px-3 py-2 font-mono text-xs",
+                      rightTab === "preview"
+                        ? "border-primary text-primary"
+                        : "border-transparent text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    Preview
+                  </button>
+                  <button
+                    onClick={() => setRightTab("history")}
+                    className={cn(
+                      "flex-1 border-b-2 px-3 py-2 font-mono text-xs",
+                      rightTab === "history"
+                        ? "border-primary text-primary"
+                        : "border-transparent text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    History
+                  </button>
+                  <button
+                    onClick={toggleFilesPanel}
+                    className="border-l border-border px-2 py-2 text-meta hover:text-foreground"
+                    title={filesCollapsed ? "Expand" : "Collapse"}
+                  >
+                    {filesCollapsed ? (
+                      <PanelRightOpen className="h-3.5 w-3.5" />
+                    ) : (
+                      <PanelRightClose className="h-3.5 w-3.5" />
+                    )}
+                  </button>
+                </div>
+                <div className="flex-1 overflow-hidden">
+                  {rightTab === "files" ? (
+                    <div className="flex h-full">
+                      <div className="w-[180px] shrink-0 overflow-y-auto border-r border-border">
+                        <BuilderFileList
+                          files={displayFiles}
+                          activePath={activePath}
+                          onSelect={setActivePath}
+                        />
+                      </div>
+                      <div className="flex-1 overflow-y-auto p-2">
+                        {activePath && displayFiles[activePath] !== undefined ? (
+                          <CodeBlock
+                            code={displayFiles[activePath]}
+                            language={langFor(activePath)}
+                            maxHeight="100%"
+                          />
+                        ) : (
+                          <p className="p-3 font-mono text-xs text-meta">
+                            Select a file to view it.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ) : rightTab === "preview" ? (
+                    <LivePreview files={displayFiles} />
+                  ) : (
+                    <div className="h-full overflow-y-auto p-3">
+                      {agent.changelog.length === 0 ? (
+                        <p className="font-mono text-xs text-meta">
+                          Nothing applied yet — history fills in after your first Apply.
+                        </p>
+                      ) : (
+                        <ul className="space-y-2">
+                          {agent.changelog.map((entry) => (
+                            <li
+                              key={entry.id}
+                              className="rounded-sm border border-border bg-background p-2.5 font-mono text-[11px]"
+                            >
+                              <div className="text-meta">
+                                {new Date(entry.timestamp).toLocaleString()}
+                              </div>
+                              <div className="mt-1 text-foreground">{entry.summary}</div>
+                              <div className="mt-1 truncate text-meta">
+                                {entry.filesChanged.join(", ")}
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </ResizablePanel>
+          </ResizablePanelGroup>
         </div>
+
+        {/* Collapsed files/preview leaves a quick way back in, since the
+            panel itself is 0-width and its own toggle button goes with it. */}
+        {filesCollapsed && (
+          <button
+            onClick={toggleFilesPanel}
+            className="flex items-center gap-1 font-mono text-[11px] text-meta hover:text-foreground"
+          >
+            <PanelRightOpen className="h-3 w-3" /> Show files/preview
+          </button>
+        )}
 
         {agent.error && (
           <div className="rounded-sm border border-destructive/40 bg-destructive/5 p-3 font-mono text-xs text-destructive">
@@ -301,6 +473,7 @@ function BuilderPage() {
 
         {hasApplied && !agent.pendingFiles && (
           <>
+            {agent.metrics && <BuildSummaryCard metrics={agent.metrics} />}
             <DeployContractPanel files={agent.files} />
             <ResultPanel files={agent.files} projectName={projectName} />
           </>

@@ -10,6 +10,13 @@ export type {
   ToolStep,
   ToolStepKind,
   ToolStepStatus,
+  BuildStep,
+  BuildStepKind,
+  BuildStepStatus,
+  BuildMetrics,
+  ChangelogEntry,
+  AwaitingApproval,
+  BuildMode,
 } from "@/lib/studio-ai/conversations";
 
 /**
@@ -43,8 +50,16 @@ export function useAppAgent(conversationId: string | null, cfg: UaInitConfig) {
     pendingFindings: run.pendingFindings,
     error: run.error,
     suggestedName: run.suggestedName,
+    mode: conversation?.mode ?? "manual",
+    steps: conversation?.steps ?? [],
+    metrics: conversation?.metrics ?? null,
+    changelog: conversation?.changelog ?? [],
+    awaitingApproval: conversation?.awaitingApproval ?? null,
     run: (prompt: string, opts?: { inspirationUrl?: string }) => {
       if (conversationId) void useAgentRuntime.getState().run(conversationId, cfg, prompt, opts);
+    },
+    approvePlan: () => {
+      if (conversationId) void useAgentRuntime.getState().approvePlan(conversationId, cfg);
     },
     stop: () => {
       if (conversationId) useAgentRuntime.getState().stop(conversationId);

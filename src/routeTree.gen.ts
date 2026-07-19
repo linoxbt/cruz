@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ScaffolderRouteImport } from './routes/scaffolder'
 import { Route as ProjectsRouteImport } from './routes/projects'
 import { Route as InspectorRouteImport } from './routes/inspector'
@@ -19,7 +20,13 @@ import { Route as BuilderRouteImport } from './routes/builder'
 import { Route as AppRouteImport } from './routes/app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiAiRouteImport } from './routes/api.ai'
+import { Route as ApiOauthGithubCallbackRouteImport } from './routes/api.oauth.github.callback'
 
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ScaffolderRoute = ScaffolderRouteImport.update({
   id: '/scaffolder',
   path: '/scaffolder',
@@ -70,6 +77,11 @@ const ApiAiRoute = ApiAiRouteImport.update({
   path: '/api/ai',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiOauthGithubCallbackRoute = ApiOauthGithubCallbackRouteImport.update({
+  id: '/api/oauth/github/callback',
+  path: '/api/oauth/github/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -81,7 +93,9 @@ export interface FileRoutesByFullPath {
   '/inspector': typeof InspectorRoute
   '/projects': typeof ProjectsRoute
   '/scaffolder': typeof ScaffolderRoute
+  '/settings': typeof SettingsRoute
   '/api/ai': typeof ApiAiRoute
+  '/api/oauth/github/callback': typeof ApiOauthGithubCallbackRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -93,7 +107,9 @@ export interface FileRoutesByTo {
   '/inspector': typeof InspectorRoute
   '/projects': typeof ProjectsRoute
   '/scaffolder': typeof ScaffolderRoute
+  '/settings': typeof SettingsRoute
   '/api/ai': typeof ApiAiRoute
+  '/api/oauth/github/callback': typeof ApiOauthGithubCallbackRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -106,7 +122,9 @@ export interface FileRoutesById {
   '/inspector': typeof InspectorRoute
   '/projects': typeof ProjectsRoute
   '/scaffolder': typeof ScaffolderRoute
+  '/settings': typeof SettingsRoute
   '/api/ai': typeof ApiAiRoute
+  '/api/oauth/github/callback': typeof ApiOauthGithubCallbackRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -120,7 +138,9 @@ export interface FileRouteTypes {
     | '/inspector'
     | '/projects'
     | '/scaffolder'
+    | '/settings'
     | '/api/ai'
+    | '/api/oauth/github/callback'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -132,7 +152,9 @@ export interface FileRouteTypes {
     | '/inspector'
     | '/projects'
     | '/scaffolder'
+    | '/settings'
     | '/api/ai'
+    | '/api/oauth/github/callback'
   id:
     | '__root__'
     | '/'
@@ -144,7 +166,9 @@ export interface FileRouteTypes {
     | '/inspector'
     | '/projects'
     | '/scaffolder'
+    | '/settings'
     | '/api/ai'
+    | '/api/oauth/github/callback'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -157,11 +181,20 @@ export interface RootRouteChildren {
   InspectorRoute: typeof InspectorRoute
   ProjectsRoute: typeof ProjectsRoute
   ScaffolderRoute: typeof ScaffolderRoute
+  SettingsRoute: typeof SettingsRoute
   ApiAiRoute: typeof ApiAiRoute
+  ApiOauthGithubCallbackRoute: typeof ApiOauthGithubCallbackRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/scaffolder': {
       id: '/scaffolder'
       path: '/scaffolder'
@@ -232,6 +265,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAiRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/oauth/github/callback': {
+      id: '/api/oauth/github/callback'
+      path: '/api/oauth/github/callback'
+      fullPath: '/api/oauth/github/callback'
+      preLoaderRoute: typeof ApiOauthGithubCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -245,7 +285,9 @@ const rootRouteChildren: RootRouteChildren = {
   InspectorRoute: InspectorRoute,
   ProjectsRoute: ProjectsRoute,
   ScaffolderRoute: ScaffolderRoute,
+  SettingsRoute: SettingsRoute,
   ApiAiRoute: ApiAiRoute,
+  ApiOauthGithubCallbackRoute: ApiOauthGithubCallbackRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

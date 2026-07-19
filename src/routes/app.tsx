@@ -2,7 +2,6 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useAccount } from "wagmi";
 import { Loader2, ArrowRight, LogIn } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ConnectModal } from "@/components/web3/ConnectModal";
 import { useUniversalAccount } from "@/hooks/useUniversalAccount";
 import { useDelegationStatus } from "@/hooks/useDelegationStatus";
@@ -61,14 +60,10 @@ function AppStats({ connected }: { connected: boolean }) {
   return (
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
       {stats.map((s) => (
-        <Card key={s.label}>
-          <CardContent className="p-4">
-            <div className="font-mono text-[10px] uppercase tracking-wider text-meta">
-              {s.label}
-            </div>
-            <div className="mt-1 font-display text-lg font-bold text-foreground">{s.value}</div>
-          </CardContent>
-        </Card>
+        <div key={s.label} className="rounded-sm border border-border bg-surface p-4">
+          <div className="font-mono text-[10px] uppercase tracking-wider text-meta">{s.label}</div>
+          <div className="mt-1 font-display text-lg font-bold text-foreground">{s.value}</div>
+        </div>
       ))}
     </div>
   );
@@ -78,8 +73,8 @@ function AppStats({ connected }: { connected: boolean }) {
 
 function LoginBanner({ onConnect }: { onConnect: () => void }) {
   return (
-    <Card className="cruz-glow border-border">
-      <CardContent className="flex flex-col items-center gap-3 px-6 py-10 text-center sm:flex-row sm:justify-between sm:text-left">
+    <div className="cruz-glow rounded-sm border border-border bg-surface">
+      <div className="flex flex-col items-center gap-3 px-6 py-10 text-center sm:flex-row sm:justify-between sm:text-left">
         <div className="flex items-center gap-3">
           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
             <LogIn className="h-5 w-5" />
@@ -98,8 +93,8 @@ function LoginBanner({ onConnect }: { onConnect: () => void }) {
         >
           Log in
         </button>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
 
@@ -109,16 +104,16 @@ function UnifiedBalanceCard({ address }: { address: `0x${string}` }) {
   const { data, isLoading, isError, error } = useUniversalAccount(address);
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center justify-between text-sm">
+    <div className="rounded-sm border border-border bg-surface">
+      <div className="border-b border-border p-4 pb-3">
+        <div className="flex items-center justify-between text-sm font-bold text-foreground">
           <span>Unified Balance</span>
           <span className="font-mono text-[11px] font-normal text-meta">
             {truncateAddress(address)}
           </span>
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
+        </div>
+      </div>
+      <div className="p-4">
         {!isParticleConfigured() ? (
           <ConfigNotice />
         ) : isLoading ? (
@@ -172,8 +167,8 @@ function UnifiedBalanceCard({ address }: { address: `0x${string}` }) {
             )}
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
 
@@ -192,11 +187,11 @@ function DelegationCard({ address }: { address: `0x${string}` }) {
   const { data, isLoading, isError } = useDelegationStatus(address);
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-sm">Account Status</CardTitle>
-      </CardHeader>
-      <CardContent>
+    <div className="rounded-sm border border-border bg-surface">
+      <div className="border-b border-border p-4 pb-3 text-sm font-bold text-foreground">
+        Account Status
+      </div>
+      <div className="p-4">
         {isLoading ? (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" /> Reading account code on Arbitrum One…
@@ -226,8 +221,8 @@ function DelegationCard({ address }: { address: `0x${string}` }) {
             </Link>
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
 

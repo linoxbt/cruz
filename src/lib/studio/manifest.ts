@@ -5,6 +5,7 @@ import {
   MessageSquareCode,
   PackagePlus,
   ScanSearch,
+  Settings,
   Waypoints,
   type LucideIcon,
 } from "lucide-react";
@@ -15,7 +16,14 @@ import {
 // exists so the landing page and sidebar render from one source, and so adding
 // a future module is "add an id + drop in a route file" with no refactor.
 export type CruzModuleId =
-  "inspector" | "composer" | "scaffolder" | "editor" | "codeAi" | "builder" | "projects";
+  | "inspector"
+  | "composer"
+  | "scaffolder"
+  | "editor"
+  | "codeAi"
+  | "builder"
+  | "projects"
+  | "settings";
 
 export interface CruzModuleDef {
   id: CruzModuleId;
@@ -71,6 +79,12 @@ export const CRUZ_MODULES: CruzModuleDef[] = [
     path: "/projects",
     description: "Every app you've built in the AI Builder, in one place.",
   },
+  {
+    id: "settings",
+    label: "Settings",
+    path: "/settings",
+    description: "Connect GitHub, Vercel, and Netlify once for every deploy.",
+  },
 ];
 
 // One icon per module id, shared by the sidebar and the dashboard's quick
@@ -83,4 +97,5 @@ export const CRUZ_MODULE_ICONS: Record<CruzModuleId, LucideIcon> = {
   codeAi: MessageSquareCode,
   builder: Bot,
   projects: FolderKanban,
+  settings: Settings,
 };

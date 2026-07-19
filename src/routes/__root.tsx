@@ -79,13 +79,18 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           "CRUZ — a chain-abstraction console for Universal Accounts on Arbitrum. Inspect, upgrade, compose, and scaffold.",
       },
       { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
+      { property: "og:image", content: "/og-image.png" },
+      { property: "og:image:width", content: "1200" },
+      { property: "og:image:height", content: "630" },
+      { property: "og:image:alt", content: "CRUZ — One account, any chain." },
+      { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:title", content: "CRUZ — One account, any chain" },
       {
         name: "twitter:description",
         content:
           "CRUZ — a chain-abstraction console for Universal Accounts on Arbitrum. Inspect, upgrade, compose, and scaffold.",
       },
+      { name: "twitter:image", content: "/og-image.png" },
     ],
     links: [
       { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },

@@ -1,15 +1,15 @@
 import { useState } from "react";
-import { useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { Loader2, Github, Rocket, Globe, FileCode2 } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 import { CodeBlock } from "@/components/shared/CodeBlock";
 import { useEditorIntake } from "@/lib/editor-intake";
 import { pushToGithubRepo, deployToVercel, deployToNetlify } from "@/lib/api/studio.functions";
 import { UNIFIED_WALLET_TEMPLATE } from "@/lib/studio-templates/unifiedWallet";
 import { downloadZip } from "@/lib/zip";
+import { useDeployConnections } from "@/lib/studio/deployConnections";
 
 export function ResultPanel({
   files,
@@ -21,32 +21,37 @@ export function ResultPanel({
   const navigate = useNavigate();
   const setPending = useEditorIntake((s) => s.setPending);
 
-  const [githubToken, setGithubToken] = useState("");
+  const github = useDeployConnections((s) => s.github);
+  const vercelToken = useDeployConnections((s) => s.vercelToken);
+  const netlifyToken = useDeployConnections((s) => s.netlifyToken);
+
   const [githubPrivate, setGithubPrivate] = useState(true);
   const [githubBusy, setGithubBusy] = useState(false);
   const [githubResult, setGithubResult] = useState<{ ok: boolean; message: string } | null>(null);
 
-  const [vercelToken, setVercelToken] = useState("");
   const [vercelBusy, setVercelBusy] = useState(false);
   const [vercelResult, setVercelResult] = useState<{ ok: boolean; message: string } | null>(null);
 
-  const [netlifyToken, setNetlifyToken] = useState("");
   const [netlifyBusy, setNetlifyBusy] = useState(false);
   const [netlifyResult, setNetlifyResult] = useState<{ ok: boolean; message: string } | null>(null);
 
   const downloadArchive = () => {
     // No secrets required — a real, runnable .zip of the generated project
     // (npm install && npm run dev works locally), for when the user doesn't
-    // want to hand over a GitHub/Vercel/Netlify token.
+    // want to hand over a GitHub/Vercel/Netlify connection.
     downloadZip(files, projectName || "cruz-starter");
   };
 
   const pushGithub = async () => {
+    if (!github) return;
     setGithubBusy(true);
     setGithubResult(null);
     try {
+      // The repo name always mirrors the actual project you're delivering
+      // (auto-suggested by the AI Builder, or whatever you named the
+      // Scaffolder template) — never a generic placeholder.
       const res = await pushToGithubRepo({
-        data: { token: githubToken, repoName: projectName, files, private: githubPrivate },
+        data: { token: github.token, repoName: projectName, files, private: githubPrivate },
       });
       setGithubResult(
         res.ok ? { ok: true, message: res.repoUrl } : { ok: false, message: res.message },
@@ -125,82 +130,93 @@ export function ResultPanel({
         <div className="flex items-center gap-2 font-mono text-xs font-bold text-foreground">
           <Github className="h-4 w-4" /> Push to a new GitHub repo
         </div>
-        <div className="mt-3 space-y-2">
-          <Label className="font-mono text-xs">Personal access token (repo-creation scope)</Label>
-          <Input
-            type="password"
-            value={githubToken}
-            onChange={(e) => setGithubToken(e.target.value)}
-            placeholder="ghp_…"
-            className="font-mono text-xs"
-          />
-          <div className="flex items-center justify-between pt-1">
-            <Label className="font-mono text-xs">Private repo</Label>
-            <Switch checked={githubPrivate} onCheckedChange={setGithubPrivate} />
-          </div>
-          <Button onClick={pushGithub} disabled={githubBusy || !githubToken || !projectName}>
-            {githubBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Create repo & push"}
-          </Button>
-          {githubResult && (
-            <div
-              className={`font-mono text-xs ${githubResult.ok ? "text-success" : "text-destructive"}`}
-            >
-              {githubResult.message}
+        {!github ? (
+          <p className="mt-3 font-mono text-[11px] text-muted-foreground">
+            Not connected —{" "}
+            <Link to="/settings" className="text-primary hover:underline">
+              connect GitHub in Settings
+            </Link>{" "}
+            first.
+          </p>
+        ) : (
+          <div className="mt-3 space-y-2">
+            <p className="font-mono text-[11px] text-muted-foreground">
+              Connected as <span className="text-foreground">{github.login}</span> — repo will be
+              named <span className="text-foreground">{projectName || "(set a project name)"}</span>
+              .
+            </p>
+            <div className="flex items-center justify-between pt-1">
+              <Label className="font-mono text-xs">Private repo</Label>
+              <Switch checked={githubPrivate} onCheckedChange={setGithubPrivate} />
             </div>
-          )}
-        </div>
+            <Button onClick={pushGithub} disabled={githubBusy || !projectName}>
+              {githubBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Create repo & push"}
+            </Button>
+            {githubResult && (
+              <div
+                className={`font-mono text-xs ${githubResult.ok ? "text-success" : "text-destructive"}`}
+              >
+                {githubResult.message}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="rounded-sm border border-border bg-surface p-4">
         <div className="flex items-center gap-2 font-mono text-xs font-bold text-foreground">
           <Rocket className="h-4 w-4" /> Deploy to Vercel
         </div>
-        <div className="mt-3 space-y-2">
-          <Label className="font-mono text-xs">Vercel API token</Label>
-          <Input
-            type="password"
-            value={vercelToken}
-            onChange={(e) => setVercelToken(e.target.value)}
-            placeholder="…"
-            className="font-mono text-xs"
-          />
-          <Button onClick={deploy} disabled={vercelBusy || !vercelToken || !projectName}>
-            {vercelBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Deploy"}
-          </Button>
-          {vercelResult && (
-            <div
-              className={`font-mono text-xs ${vercelResult.ok ? "text-success" : "text-destructive"}`}
-            >
-              {vercelResult.message}
-            </div>
-          )}
-        </div>
+        {!vercelToken ? (
+          <p className="mt-3 font-mono text-[11px] text-muted-foreground">
+            No token saved —{" "}
+            <Link to="/settings" className="text-primary hover:underline">
+              add a Vercel token in Settings
+            </Link>{" "}
+            first.
+          </p>
+        ) : (
+          <div className="mt-3 space-y-2">
+            <Button onClick={deploy} disabled={vercelBusy || !projectName}>
+              {vercelBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Deploy"}
+            </Button>
+            {vercelResult && (
+              <div
+                className={`font-mono text-xs ${vercelResult.ok ? "text-success" : "text-destructive"}`}
+              >
+                {vercelResult.message}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="rounded-sm border border-border bg-surface p-4">
         <div className="flex items-center gap-2 font-mono text-xs font-bold text-foreground">
           <Globe className="h-4 w-4" /> Deploy to Netlify
         </div>
-        <div className="mt-3 space-y-2">
-          <Label className="font-mono text-xs">Netlify personal access token</Label>
-          <Input
-            type="password"
-            value={netlifyToken}
-            onChange={(e) => setNetlifyToken(e.target.value)}
-            placeholder="…"
-            className="font-mono text-xs"
-          />
-          <Button onClick={deployNetlify} disabled={netlifyBusy || !netlifyToken || !projectName}>
-            {netlifyBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Deploy"}
-          </Button>
-          {netlifyResult && (
-            <div
-              className={`font-mono text-xs ${netlifyResult.ok ? "text-success" : "text-destructive"}`}
-            >
-              {netlifyResult.message}
-            </div>
-          )}
-        </div>
+        {!netlifyToken ? (
+          <p className="mt-3 font-mono text-[11px] text-muted-foreground">
+            No token saved —{" "}
+            <Link to="/settings" className="text-primary hover:underline">
+              add a Netlify token in Settings
+            </Link>{" "}
+            first.
+          </p>
+        ) : (
+          <div className="mt-3 space-y-2">
+            <Button onClick={deployNetlify} disabled={netlifyBusy || !projectName}>
+              {netlifyBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Deploy"}
+            </Button>
+            {netlifyResult && (
+              <div
+                className={`font-mono text-xs ${netlifyResult.ok ? "text-success" : "text-destructive"}`}
+              >
+                {netlifyResult.message}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <details>
