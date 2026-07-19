@@ -6,6 +6,7 @@ import { signAndSendWithMagic, useMagic, useMagicAddress } from "@/lib/studio/ma
 import { arbitrumOne } from "@/lib/chains";
 import { parseArgs } from "@/lib/abiArgParser";
 import { useComposerHistory } from "@/lib/studio/composerHistory";
+import { describeWeb3Error } from "@/lib/studio/web3Error";
 
 export interface TransferInput {
   mode: "transfer";
@@ -122,7 +123,7 @@ export function useTxComposer() {
       setTransaction(tx);
       setStatus("ready");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Preview failed");
+      setError(describeWeb3Error(e, "Preview failed"));
       setStatus("error");
     }
   }
@@ -143,7 +144,7 @@ export function useTxComposer() {
       if (lastInput) useComposerHistory.getState().add(lastInput, id);
       setStatus("done");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Execution failed");
+      setError(describeWeb3Error(e, "Execution failed"));
       setStatus("error");
     }
   }
