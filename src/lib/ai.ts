@@ -183,7 +183,7 @@ async function withContinuation(
       {
         role: "user",
         content:
-          "Your last response was cut off by a length limit before it finished. Continue EXACTLY where you left off (mid-file if you were mid-file) — do not repeat anything already written and do not restate the plan or any earlier file, just resume and carry on with the rest of the protocol.",
+          "Your last response was cut off by a length limit before it finished. Resume the output as a raw continuation of the exact character where it stopped — if you were mid-word, mid-line, or mid-code-block, your very first character must continue that token with NO preamble, NO acknowledgement, NO restating the plan or any earlier file, and NO reopening a ``` fence that's already open. Do not repeat anything already written. Just emit the next characters and carry on with the rest of the protocol.",
       },
     ];
   }

@@ -65,7 +65,10 @@ export interface Dashboard {
 
 export interface BillingProvider {
   id: string;
-  preflight(ctx: BillingCtx): Promise<PreflightResult>;
+  // estCents (when provided) is the caller's context-derived estimate, so the
+  // preflight balance-sufficiency check uses the SAME basis as the per-call
+  // reserve — otherwise a user can clear preflight and then 402 at reserve.
+  preflight(ctx: BillingCtx, estCents?: number): Promise<PreflightResult>;
   // gid identifies the whole generation (one user prompt) and controls free-
   // slot allocation; callId is unique per upstream HTTP call and is the charge
   // unit (one prompt can fan out to many calls via retries/continuations).

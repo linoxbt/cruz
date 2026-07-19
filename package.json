@@ -11,7 +11,8 @@
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
     "lint": "eslint .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "test:ledger": "bun run scripts/ledger-lua-test.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

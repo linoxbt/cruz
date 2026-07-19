@@ -23,6 +23,20 @@ import {
 
 export type FundAsset = "eth" | "usdc";
 
+/** Keeps the module-scope billingStore address in sync with the connected
+ *  wallet. MUST be mounted unconditionally on any page where a generation can
+ *  start (agentRuntime.ts reads getBillingContext() at module scope, so if
+ *  nothing syncs the address the billing gate silently never engages). Kept
+ *  separate from useBilling() so it can be called at a route's top level
+ *  without pulling in the dashboard query. */
+export function useSyncBillingAddress() {
+  const { address } = useAccount();
+  const setAddress = useBillingStore((s) => s.setAddress);
+  useEffect(() => {
+    setAddress(address ?? null);
+  }, [address, setAddress]);
+}
+
 /** Best-effort resolution of a Particle UA transactionId to the settled EVM
  *  tx hash the server verifies. `getTransaction` returns `any`, so probe the
  *  common shapes and give up gracefully (the server can't credit without a
@@ -61,15 +75,12 @@ export function useBilling() {
   const { address } = useAccount();
   const token = useBillingStore((s) => s.token);
   const setToken = useBillingStore((s) => s.setToken);
-  const setAddress = useBillingStore((s) => s.setAddress);
   const setDashboard = useBillingStore((s) => s.setDashboard);
 
-  // Keep the module-scope store's address in sync with the connected wallet,
-  // so agentRuntime.ts (not a hook) reads the right billing context and the
-  // per-address auth token re-hydrates on connect/switch.
-  useEffect(() => {
-    setAddress(address ?? null);
-  }, [address, setAddress]);
+  // Keep the module-scope store's address in sync with the connected wallet
+  // (shared with the standalone useSyncBillingAddress so a page can sync
+  // without mounting the full dashboard query).
+  useSyncBillingAddress();
 
   const dashboardQuery = useQuery({
     queryKey: ["billing", "dashboard", address?.toLowerCase(), token],

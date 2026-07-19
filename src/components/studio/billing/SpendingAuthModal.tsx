@@ -67,9 +67,10 @@ export function SpendingAuthModal({
             Spending authorization
           </DialogTitle>
           <DialogDescription>
-            Authorize CRUZ to automatically pay for AI Builder generations from your prepaid
-            balance. This does not move any funds by itself and can be revoked at any time; your
-            remaining balance is always preserved.
+            Verify your wallet with one signature to start building. This proves the wallet is yours
+            (unlocking your free prompts) and authorizes CRUZ to pay for generations from your
+            prepaid balance after that. It moves no funds by itself and can be revoked at any time;
+            your remaining balance is always preserved.
           </DialogDescription>
         </DialogHeader>
 
@@ -90,7 +91,7 @@ export function SpendingAuthModal({
             </Button>
           ) : (
             <Button onClick={doAuthorize} disabled={busy}>
-              {busy ? "Waiting for signature…" : "Authorize spending"}
+              {busy ? "Waiting for signature…" : "Verify wallet & authorize"}
             </Button>
           )}
         </DialogFooter>

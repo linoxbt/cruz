@@ -165,12 +165,17 @@ export const preflightGeneration = createServerFn({ method: "POST" })
       return { ok: true as const, configured: false as const, status: "free" as const };
     }
     const provider = getBillingProvider();
-    const res = await provider.preflight({ address: data.address, token: data.token ?? null });
+    const estFromContext =
+      data.contextChars != null ? estimateCostCents(data.contextChars) : undefined;
+    // Use the SAME context-derived estimate the per-call reserve will use, so
+    // preflight and reserve agree on affordability (no clear-then-402).
+    const res = await provider.preflight(
+      { address: data.address, token: data.token ?? null },
+      estFromContext,
+    );
     if (!res.ok) return { ok: false as const, message: res.message };
     const { ok: _ok, ...rest } = res;
     void _ok;
-    const estFromContext =
-      data.contextChars != null ? estimateCostCents(data.contextChars) : undefined;
     return { ok: true as const, configured: true as const, ...rest, estFromContext };
   });
 

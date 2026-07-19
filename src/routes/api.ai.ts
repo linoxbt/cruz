@@ -3,7 +3,7 @@ import { z } from "zod";
 import { checkRateLimit, clientKeyFromRequest } from "@/lib/rateLimit.server";
 import { isBillingConfigured } from "@/lib/billing/config.server";
 import { getBillingProvider } from "@/lib/billing/index.server";
-import { computeCostFromStream, estimateCostCents } from "@/lib/billing/cost.server";
+import { createCostMeter, estimateCostCents } from "@/lib/billing/cost.server";
 import type { BillingCtx } from "@/lib/billing/types";
 
 // Server-side AI proxy for the AI Builder. When the deployment sets a
@@ -171,6 +171,9 @@ async function upstreamRequest(
       temperature: 0.2,
       max_tokens: MAX_TOKENS,
       stream: true,
+      // Ask for a final usage chunk so billing can meter real token counts on
+      // the OpenAI-compatible path (harmless on providers that ignore it).
+      stream_options: { include_usage: true },
     }),
     signal,
   });
@@ -278,23 +281,41 @@ export const Route = createFileRoute("/api/ai")({
           });
         }
 
-        // Billing: tee the stream — one branch to the client byte-for-byte
-        // unchanged, the other consumed server-side to compute the exact cost
-        // and settle when the stream closes. If the client aborts before
-        // usable usage arrives, settle records whatever (likely ~0) cost was
-        // measured, so undelivered work isn't overcharged.
-        const [toClient, toMeter] = upstream.body.tee();
-        (async () => {
+        // Billing: meter the stream inline via a TransformStream. Bytes pass
+        // to the client unchanged; a cost meter accumulates as they flow, and
+        // settle() runs in flush() — part of the response stream's own
+        // lifecycle, so the platform keeps the invocation alive until it
+        // completes (a detached post-return promise is NOT guaranteed to run
+        // on serverless, which would silently drop the charge). If the client
+        // aborts mid-stream, flush won't run and the hold TTL-reaps, so
+        // undelivered work isn't charged.
+        const meter = createCostMeter(providerFmt);
+        const decoder = new TextDecoder();
+        let settled = false;
+        const settleOnce = async () => {
+          if (settled) return;
+          settled = true;
           try {
-            const { costCents } = await computeCostFromStream(toMeter, providerFmt);
-            await provider.settle(ctx, billing.gid, callId, costCents);
+            await provider.settle(ctx, billing!.gid, callId, meter.result().costCents);
           } catch {
-            // Metering failed — release the hold rather than charge a guess.
-            await provider.release(ctx, billing.gid, callId).catch(() => {});
+            await provider.release(ctx, billing!.gid, callId).catch(() => {});
           }
-        })();
+        };
+        const metering = new TransformStream<Uint8Array, Uint8Array>({
+          transform(chunk, controller) {
+            try {
+              meter.write(decoder.decode(chunk, { stream: true }));
+            } catch {
+              /* never let metering corrupt the passthrough */
+            }
+            controller.enqueue(chunk);
+          },
+          async flush() {
+            await settleOnce();
+          },
+        });
 
-        return new Response(toClient, {
+        return new Response(upstream.body.pipeThrough(metering), {
           status: 200,
           headers: {
             "content-type": "text/event-stream; charset=utf-8",

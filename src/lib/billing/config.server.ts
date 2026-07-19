@@ -13,8 +13,10 @@ export interface BillingConfig {
     // 0G's router reports cost in its own settlement unit (wei-scale, seen
     // live as e.g. "1228190000000000" in an x_0g_trace event) — this is the
     // USD price of one whole unit of that settlement value (i.e. after
-    // dividing the raw string by 1e18), used to convert it to USD-cents.
-    zgSettlementUsdPerUnit: number;
+    // dividing the raw string by 1e18). null when unset: the operator hasn't
+    // calibrated it, so the trace cost is NOT trusted (we fall back to token
+    // pricing) rather than charging a meaningless amount from an unknown unit.
+    zgSettlementUsdPerUnit: number | null;
     anthropicInputPerMTok: number;
     anthropicOutputPerMTok: number;
     openaiInputPerMTok: number;
@@ -25,6 +27,14 @@ export interface BillingConfig {
 function num(v: string | undefined, fallback: number): number {
   const n = Number(v);
   return Number.isFinite(n) && n >= 0 ? n : fallback;
+}
+
+/** Like num(), but returns null when the var is unset/blank — used for values
+ *  that must be explicitly calibrated by the operator (no safe default). */
+function numOrNull(v: string | undefined): number | null {
+  if (v == null || v.trim() === "") return null;
+  const n = Number(v);
+  return Number.isFinite(n) && n >= 0 ? n : null;
 }
 
 export function billingConfig(): BillingConfig {
@@ -41,7 +51,7 @@ export function billingConfig(): BillingConfig {
       Math.floor(num(e.BILLING_LOW_BALANCE_THRESHOLD_CENTS, 100)),
     ),
     rates: {
-      zgSettlementUsdPerUnit: num(e.ZG_SETTLEMENT_USD_PER_UNIT, 1),
+      zgSettlementUsdPerUnit: numOrNull(e.ZG_SETTLEMENT_USD_PER_UNIT),
       anthropicInputPerMTok: num(e.ANTHROPIC_COST_INPUT_PER_MTOK, 3),
       anthropicOutputPerMTok: num(e.ANTHROPIC_COST_OUTPUT_PER_MTOK, 15),
       openaiInputPerMTok: num(e.OPENAI_COST_INPUT_PER_MTOK, 2.5),

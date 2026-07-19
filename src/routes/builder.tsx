@@ -30,6 +30,7 @@ import { FileDiffPreview } from "@/components/studio/builder/FileDiffPreview";
 import { LivePreview } from "@/components/studio/builder/LivePreview";
 import { ResultPanel } from "@/components/studio/scaffolder/ResultPanel";
 import { useAppAgent } from "@/hooks/useAppAgent";
+import { useSyncBillingAddress } from "@/hooks/useBilling";
 import { useAiSettings, useAiServerStatus } from "@/lib/ai-settings";
 import { useConversations, DEFAULT_PROJECT_NAME } from "@/lib/studio-ai/conversations";
 import { cn } from "@/lib/utils";
@@ -80,6 +81,11 @@ function BuilderPage() {
   const [securityAcknowledged, setSecurityAcknowledged] = useState(false);
 
   const agent = useAppAgent(activeId, { projectName });
+
+  // Sync the connected wallet into the module-scope billing store so the
+  // generation gate in agentRuntime.ts engages — mounted here at the route
+  // top level, not inside a conditionally-rendered panel.
+  useSyncBillingAddress();
 
   const filesPanelRef = usePanelRef();
   const [filesCollapsed, setFilesCollapsed] = useState(false);

@@ -39,7 +39,7 @@ function historyEntry(type: HistoryEntry["type"], amountCents: number, detail?: 
 // safety net — no background job needed, this runs inline on the next
 // reserve call for that address) before doing anything else. cjson is part
 // of Redis's built-in Lua environment (no `require`, standard on Upstash).
-const RESERVE_OR_FREE_SCRIPT = `
+export const RESERVE_OR_FREE_SCRIPT = `
 local ledger, freeCount, freeGids, seenGids, holds, settled, auth = KEYS[1], KEYS[2], KEYS[3], KEYS[4], KEYS[5], KEYS[6], KEYS[7]
 local gid, turn, est, now, freeLimit, holdTtl, callerTokenHash = ARGV[1], ARGV[2], tonumber(ARGV[3]), tonumber(ARGV[4]), tonumber(ARGV[5]), tonumber(ARGV[6]), ARGV[7]
 
@@ -55,13 +55,33 @@ for i = 1, #heldFields, 2 do
   end
 end
 
--- 2. Count this generation toward promptsUsed exactly once, regardless of
+-- 2. Require a valid, non-revoked authorization for ANY billed use (free OR
+--    paid). The token proves control of this address, so free prompts can't
+--    be farmed by POSTing arbitrary addresses, nor burned on someone else's
+--    behalf. One signature (authorizeSpending) unlocks both the free tier and
+--    pay-as-you-go. (Sybil across many self-owned wallets is still bounded
+--    only by the IP rate limiter — documented, not solvable without PoP.)
+local tokenHash = redis.call('HGET', auth, 'tokenHash')
+local revoked = redis.call('HGET', auth, 'revoked')
+if revoked == '1' then
+  return cjson.encode({ mode = 'blocked', reason = 'revoked' })
+end
+if not tokenHash or tokenHash == '' or callerTokenHash == '' or callerTokenHash ~= tokenHash then
+  return cjson.encode({ mode = 'blocked', reason = 'not-authorized' })
+end
+
+-- 3. Count this generation toward promptsUsed exactly once, regardless of
 --    free/paid outcome or how many turns it eventually takes.
 if redis.call('SADD', seenGids, gid) == 1 then
   redis.call('HINCRBY', ledger, 'promptsUsed', 1)
 end
+-- Bound growth: these dedup sets only matter for a generation's active life
+-- (minutes); a 7-day TTL (refreshed on write) keeps them from growing without
+-- limit. freeCount (the real free-tier cap) is a separate never-expiring
+-- counter, so expiring the gid set can't hand out extra free prompts.
+redis.call('EXPIRE', seenGids, 604800)
 
--- 3. Free-tier path: once a gid is marked free, every turn of it is free.
+-- 4. Free-tier path: once a gid is marked free, every turn of it is free.
 if redis.call('SISMEMBER', freeGids, gid) == 1 then
   return cjson.encode({ mode = 'free' })
 end
@@ -72,19 +92,7 @@ if used < freeLimit then
   return cjson.encode({ mode = 'free' })
 end
 
--- 4. Paid path: requires a live, non-revoked authorization matching the
---    caller's token, then an atomic balance check + hold.
-local tokenHash = redis.call('HGET', auth, 'tokenHash')
-local revoked = redis.call('HGET', auth, 'revoked')
-if not tokenHash or tokenHash == '' then
-  return cjson.encode({ mode = 'blocked', reason = 'not-authorized' })
-end
-if revoked == '1' then
-  return cjson.encode({ mode = 'blocked', reason = 'revoked' })
-end
-if callerTokenHash == '' or callerTokenHash ~= tokenHash then
-  return cjson.encode({ mode = 'blocked', reason = 'not-authorized' })
-end
+-- 5. Paid path: atomic balance check + hold (authorization already verified).
 local balance = tonumber(redis.call('HGET', ledger, 'balanceCents')) or 0
 if balance < est then
   return cjson.encode({ mode = 'blocked', reason = 'needs-funding' })
@@ -95,7 +103,7 @@ redis.call('HSET', holds, gid .. ':' .. turn, cjson.encode({ estCents = est, exp
 return cjson.encode({ mode = 'paid' })
 `;
 
-const SETTLE_SCRIPT = `
+export const SETTLE_SCRIPT = `
 local ledger, holds, settled, history, freeGids = KEYS[1], KEYS[2], KEYS[3], KEYS[4], KEYS[5]
 local gid, turn, finalCents, historyJson, cap = ARGV[1], ARGV[2], tonumber(ARGV[3]), ARGV[4], tonumber(ARGV[5])
 local settleKey = gid .. ':' .. turn
@@ -105,6 +113,7 @@ if redis.call('SISMEMBER', settled, settleKey) == 1 then
   return cjson.encode({ balanceCents = bal })
 end
 redis.call('SADD', settled, settleKey)
+redis.call('EXPIRE', settled, 604800)
 
 -- Free turns (the gid claimed a free slot) never touch balance — record
 -- history only. Determined from freeGids server-side, never trusted from the
@@ -140,7 +149,7 @@ redis.call('LTRIM', history, 0, cap)
 return cjson.encode({ balanceCents = bal })
 `;
 
-const RELEASE_SCRIPT = `
+export const RELEASE_SCRIPT = `
 local ledger, holds, settled = KEYS[1], KEYS[2], KEYS[3]
 local gid, turn = ARGV[1], ARGV[2]
 local settleKey = gid .. ':' .. turn
@@ -158,6 +167,26 @@ if raw then
 end
 redis.call('SADD', settled, settleKey)
 return 'released'
+`;
+
+// Standalone expired-hold reaper — run on dashboard read so a crashed/never-
+// settled generation's hold is returned to spendable balance when the user
+// looks, not only on their next reserve (otherwise the money reads as
+// "missing" until they build again).
+export const REAP_SCRIPT = `
+local ledger, holds = KEYS[1], KEYS[2]
+local now = tonumber(ARGV[1])
+local heldFields = redis.call('HGETALL', holds)
+for i = 1, #heldFields, 2 do
+  local field, raw = heldFields[i], heldFields[i + 1]
+  local ok, decoded = pcall(cjson.decode, raw)
+  if ok and decoded.expiresAt and decoded.expiresAt < now then
+    redis.call('HINCRBY', ledger, 'balanceCents', decoded.estCents)
+    redis.call('HINCRBY', ledger, 'heldCents', -decoded.estCents)
+    redis.call('HDEL', holds, field)
+  end
+end
+return 'ok'
 `;
 
 export interface ReserveOutcome {
@@ -241,6 +270,9 @@ export interface AccountSnapshot {
 export async function readAccount(address: string): Promise<AccountSnapshot> {
   const k = keys(address);
   const cfg = billingConfig();
+  // Reap expired holds first so the dashboard reflects spendable balance
+  // (a crashed generation's hold is returned here, not only on next reserve).
+  await redisEval<string>(REAP_SCRIPT, [k.ledger, k.holds], [Date.now()]).catch(() => {});
   const [ledgerFields, freeUsedRaw, authFields, historyRaw] = await Promise.all([
     redis<Array<string | null>>([
       "HMGET",

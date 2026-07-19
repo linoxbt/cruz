@@ -14,7 +14,7 @@ import {
   credit as ledgerCredit,
   readAccount,
 } from "./ledger.server";
-import { tokenHashFor } from "./auth.server";
+import { tokenHashFor, verifyToken } from "./auth.server";
 import { billingConfig } from "./config.server";
 import { estimateCostCents } from "./cost.server";
 
@@ -38,9 +38,9 @@ function statusFor(a: {
   freeLimit: number;
 }): Dashboard["status"] {
   if (a.revoked) return "revoked";
+  if (!a.authorized) return "not-authorized"; // must verify wallet before any use
   const freeLeft = Math.max(0, a.freeLimit - a.freeUsed);
   if (freeLeft > 0) return "active";
-  if (!a.authorized) return "not-authorized";
   if (a.balanceCents <= 0) return "needs-funding";
   return "active";
 }
@@ -48,14 +48,15 @@ function statusFor(a: {
 export const prepaidWalletProvider: BillingProvider = {
   id: "prepaid-wallet",
 
-  async preflight(ctx: BillingCtx): Promise<PreflightResult> {
+  async preflight(ctx: BillingCtx, estCents?: number): Promise<PreflightResult> {
     try {
       const a = await readAccount(ctx.address);
+      const verified = await verifyToken(ctx.address, ctx.token);
       const freeRemaining = Math.max(0, a.freeLimit - a.freeUsed);
-      const estCents = DEFAULT_RESERVE_CENTS;
-      if (freeRemaining > 0) {
-        return { ok: true, status: "free", estCents, balanceCents: a.balanceCents, freeRemaining };
-      }
+      const est = Math.max(1, Math.round(estCents ?? DEFAULT_RESERVE_CENTS));
+      // A valid, non-revoked signature is required before ANY use (free or
+      // paid) — proves the caller controls this address. Revoked is reported
+      // distinctly so the UI can say "re-authorize" vs "verify to start".
       if (a.revoked) {
         return {
           ok: true,
@@ -65,7 +66,7 @@ export const prepaidWalletProvider: BillingProvider = {
           freeRemaining,
         };
       }
-      if (!a.authorized) {
+      if (!verified) {
         return {
           ok: true,
           status: "blocked",
@@ -74,7 +75,16 @@ export const prepaidWalletProvider: BillingProvider = {
           freeRemaining,
         };
       }
-      if (a.balanceCents < estCents) {
+      if (freeRemaining > 0) {
+        return {
+          ok: true,
+          status: "free",
+          estCents: est,
+          balanceCents: a.balanceCents,
+          freeRemaining,
+        };
+      }
+      if (a.balanceCents < est) {
         return {
           ok: true,
           status: "blocked",
@@ -83,7 +93,13 @@ export const prepaidWalletProvider: BillingProvider = {
           freeRemaining,
         };
       }
-      return { ok: true, status: "paid", estCents, balanceCents: a.balanceCents, freeRemaining };
+      return {
+        ok: true,
+        status: "paid",
+        estCents: est,
+        balanceCents: a.balanceCents,
+        freeRemaining,
+      };
     } catch (e) {
       return { ok: false, message: e instanceof Error ? e.message : "Billing check failed." };
     }

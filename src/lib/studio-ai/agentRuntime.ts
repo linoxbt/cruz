@@ -69,6 +69,7 @@ function billingBlockDetail(reason: string | undefined): string {
     case "revoked":
       return "Spending authorization was revoked. Re-authorize to keep building; your balance is preserved.";
     case "not-authorized":
+      return "Verify your wallet to start building. One signature proves the wallet is yours and unlocks your free prompts (and pay-as-you-go after that). It moves no funds and is revocable.";
     case "trial-exhausted":
     default:
       return "You've used your free prompts. Authorize spending and add funds to keep building.";
@@ -275,8 +276,11 @@ export const useAgentRuntime = create<AgentRuntimeStore>((set, get) => {
     const bctx = getBillingContext();
     if (bctx) {
       try {
+        // Same context-size basis the per-call reserve uses, so preflight's
+        // affordability check agrees with what /api/ai will actually reserve.
+        const contextChars = internal.messages.reduce((n, m) => n + m.content.length, 0);
         const gate = await preflightGeneration({
-          data: { address: bctx.address, token: bctx.token },
+          data: { address: bctx.address, token: bctx.token, contextChars },
         });
         if (gate.ok && "status" in gate && gate.status === "blocked") {
           useConversations.getState().update(conversationId, {
