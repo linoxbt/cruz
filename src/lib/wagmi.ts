@@ -15,8 +15,21 @@ const chains = [arbitrumOne] as const;
 // __root.tsx), so an unset key would crash SSR for every route. Only register
 // the connector when a key is present; the app still renders (login just
 // surfaces a clear "set VITE_MAGIC_PUBLISHABLE_KEY" message until then).
+//
+// Separately, @magiclabs/wagmi-connector's own constructor unconditionally
+// touches the browser global `window` (binding listeners, `.listen()`) the
+// instant it's constructed — with no server guard of its own. Nitro's SSR
+// request resolver loads this module server-side to handle ANY request (not
+// just page routes), so building this connector on the server throws an
+// unhandled `ReferenceError: window is not defined` outside any try/catch —
+// confirmed live: this crashed the deployed Netlify function on every
+// request slow enough for the unhandled rejection to land mid-invocation
+// (POST /api/ai in particular), surfacing to users as "Failed to fetch."
+// wagmi's `ssr: true` below exists precisely to support a connector list
+// that differs server vs. client, so gating construction to the browser is
+// the supported pattern, not a workaround.
 const connectors: CreateConnectorFn[] = [];
-if (MAGIC_PUBLISHABLE_KEY) {
+if (MAGIC_PUBLISHABLE_KEY && typeof window !== "undefined") {
   // @magiclabs/wagmi-connector was typed against an older wagmi-core; the
   // runtime shape is correct, so satisfy the newer CreateConnectorFn type.
   connectors.push(
