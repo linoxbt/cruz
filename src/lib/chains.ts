@@ -41,3 +41,8 @@ export function chainConfig(chainId: number) {
 
 // Fallback gas price (Gwei) shown before the live RPC value arrives.
 export const DEFAULT_GAS_GWEI = 0.1;
+
+// Native USDC on Arbitrum One (6 decimals) — the billing system's funding
+// asset alongside native ETH. Not a bridged/wrapped variant.
+export const ARBITRUM_USDC = "0xaf88d065e77c8cC2239327C5EDb3A432268e5831" as const;
+export const ARBITRUM_USDC_DECIMALS = 6;

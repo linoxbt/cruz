@@ -1,6 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { checkRateLimit, clientKeyFromRequest } from "@/lib/rateLimit.server";
+import { isBillingConfigured } from "@/lib/billing/config.server";
+import { getBillingProvider } from "@/lib/billing/index.server";
+import { computeCostFromStream, estimateCostCents } from "@/lib/billing/cost.server";
+import type { BillingCtx } from "@/lib/billing/types";
 
 // Server-side AI proxy for the AI Builder. When the deployment sets a
 // server-only key (NO VITE_ prefix, so it never enters the client bundle),
@@ -84,6 +88,17 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const chatBodySchema = z.object({
   system: z.string().optional(),
   messages: z.array(z.object({ role: z.enum(["user", "assistant"]), content: z.string() })),
+  // Optional billing context (CRUZ-Default path only). Present only when the
+  // client is a wallet-connected AI Builder session and billing is enabled;
+  // absent for BYOK, the Solidity AI chat, or any unconfigured deployment —
+  // in which case this route behaves exactly as it did before billing.
+  billing: z
+    .object({
+      address: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
+      token: z.string().nullable().optional(),
+      gid: z.string().min(1),
+    })
+    .optional(),
 });
 
 async function upstreamRequest(
@@ -197,17 +212,53 @@ export const Route = createFileRoute("/api/ai")({
         if (!parsed.success) {
           return Response.json({ error: { message: "Invalid request body." } }, { status: 400 });
         }
-        const { system = "", messages } = parsed.data;
+        const { system = "", messages, billing } = parsed.data;
+
+        // Billing gate (CRUZ-Default path only, and only when configured):
+        // atomically reserve for THIS upstream call before spending the
+        // operator key. gid controls free-slot allocation across the whole
+        // generation; callId is unique per call and is the charge unit. When
+        // billing is off or no context was sent, this whole block is skipped
+        // and the route behaves exactly as before.
+        const billingActive = !!billing && isBillingConfigured();
+        const provider = billingActive ? getBillingProvider() : null;
+        const ctx: BillingCtx | null = billing
+          ? { address: billing.address as `0x${string}`, token: billing.token ?? null }
+          : null;
+        const callId =
+          typeof crypto !== "undefined" && "randomUUID" in crypto
+            ? crypto.randomUUID()
+            : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        const providerFmt: "anthropic" | "openai" =
+          c.provider === "openai" ? "openai" : "anthropic";
+
+        if (provider && ctx && billing) {
+          const contextChars = system.length + messages.reduce((n, m) => n + m.content.length, 0);
+          const estCents = estimateCostCents(contextChars);
+          const reserved = await provider.reserve(ctx, billing.gid, callId, estCents);
+          if (!reserved.ok) {
+            return Response.json(
+              { error: { message: reserved.message, reason: reserved.reason } },
+              { status: 402 },
+            );
+          }
+        }
 
         let upstream: Response;
         try {
           upstream = await upstreamRequest(c, system, messages, request.signal);
         } catch (err) {
+          // Reserved but never spent — release the hold so the user isn't
+          // charged for a call that never reached the provider.
+          if (provider && ctx && billing)
+            await provider.release(ctx, billing.gid, callId).catch(() => {});
           const message = err instanceof Error ? err.message : "Upstream request failed";
           return Response.json({ error: { message } }, { status: 502 });
         }
 
         if (!upstream.ok || !upstream.body) {
+          if (provider && ctx && billing)
+            await provider.release(ctx, billing.gid, callId).catch(() => {});
           const text = await upstream.text().catch(() => "");
           return new Response(text || JSON.stringify({ error: { message: "Upstream error" } }), {
             status: upstream.status || 502,
@@ -215,15 +266,40 @@ export const Route = createFileRoute("/api/ai")({
           });
         }
 
-        // Stream the provider's SSE straight through; the client parses it by
-        // wire format ("anthropic" | "openai") — 0G is anthropic-shaped, so it
-        // gets tagged the same as native Anthropic.
-        return new Response(upstream.body, {
+        // No billing: stream straight through, untouched (original behavior).
+        if (!provider || !ctx || !billing) {
+          return new Response(upstream.body, {
+            status: 200,
+            headers: {
+              "content-type": "text/event-stream; charset=utf-8",
+              "cache-control": "no-cache, no-transform",
+              "x-ai-provider": providerFmt,
+            },
+          });
+        }
+
+        // Billing: tee the stream — one branch to the client byte-for-byte
+        // unchanged, the other consumed server-side to compute the exact cost
+        // and settle when the stream closes. If the client aborts before
+        // usable usage arrives, settle records whatever (likely ~0) cost was
+        // measured, so undelivered work isn't overcharged.
+        const [toClient, toMeter] = upstream.body.tee();
+        (async () => {
+          try {
+            const { costCents } = await computeCostFromStream(toMeter, providerFmt);
+            await provider.settle(ctx, billing.gid, callId, costCents);
+          } catch {
+            // Metering failed — release the hold rather than charge a guess.
+            await provider.release(ctx, billing.gid, callId).catch(() => {});
+          }
+        })();
+
+        return new Response(toClient, {
           status: 200,
           headers: {
             "content-type": "text/event-stream; charset=utf-8",
             "cache-control": "no-cache, no-transform",
-            "x-ai-provider": c.provider === "openai" ? "openai" : "anthropic",
+            "x-ai-provider": providerFmt,
           },
         });
       },

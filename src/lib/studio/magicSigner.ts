@@ -99,3 +99,20 @@ export async function signAndSendWithMagic(
 
   return ua.sendTransaction(tx, txSignature, authorizations);
 }
+
+/**
+ * Signs an arbitrary message with the connected Magic wallet via the same
+ * EIP-1193 `personal_sign` primitive used for transactions above — used for
+ * the billing spending-authorization signature (SIWE-style). Returns the
+ * 0x-prefixed signature the server verifies with viem's verifyMessage.
+ */
+export async function signAuthMessage(
+  message: string,
+  signerAddress: `0x${string}`,
+): Promise<`0x${string}`> {
+  const magic = getSigningMagic();
+  if (!magic) {
+    throw new Error("Magic isn't configured, set VITE_MAGIC_PUBLISHABLE_KEY.");
+  }
+  return (await magic.rpcProvider.send("personal_sign", [message, signerAddress])) as `0x${string}`;
+}

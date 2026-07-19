@@ -64,6 +64,9 @@ export function useAppAgent(conversationId: string | null, cfg: UaInitConfig) {
     continueBuilding: () => {
       if (conversationId) void useAgentRuntime.getState().continueBuilding(conversationId, cfg);
     },
+    resumeAfterBilling: () => {
+      if (conversationId) void useAgentRuntime.getState().resumeAfterBilling(conversationId, cfg);
+    },
     stop: () => {
       if (conversationId) useAgentRuntime.getState().stop(conversationId);
     },

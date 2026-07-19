@@ -20,6 +20,8 @@ import { CodeBlock } from "@/components/shared/CodeBlock";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { AgentChatPanel } from "@/components/studio/builder/AgentChatPanel";
 import { AiSettingsPanel } from "@/components/studio/builder/AiSettingsPanel";
+import { UsageDashboard } from "@/components/studio/billing/UsageDashboard";
+import { NeedsFundingBanner } from "@/components/studio/billing/NeedsFundingBanner";
 import { BuilderFileList } from "@/components/studio/builder/BuilderFileList";
 import { BuildSummaryCard } from "@/components/studio/builder/BuildSummaryCard";
 import { ConversationList } from "@/components/studio/builder/ConversationList";
@@ -117,6 +119,7 @@ function BuilderPage() {
   const needsSecurityReview = securityFindings.length > 0 && !securityAcknowledged;
   const awaitingPlanApproval = agent.awaitingApproval?.kind === "plan";
   const awaitingLimitContinue = agent.awaitingApproval?.kind === "limit";
+  const awaitingBilling = agent.awaitingApproval?.kind === "billing";
 
   // Reset the acknowledgment whenever a new pending diff arrives — approving
   // one turn's new dependency shouldn't silently carry over to the next.
@@ -239,7 +242,21 @@ function BuilderPage() {
           />
         )}
 
-        {settingsOpen && <AiSettingsPanel />}
+        {settingsOpen && (
+          <div className="space-y-4">
+            <AiSettingsPanel />
+            <div className="rounded-sm border border-border bg-surface p-4">
+              <UsageDashboard />
+            </div>
+          </div>
+        )}
+
+        {awaitingBilling && (
+          <NeedsFundingBanner
+            detail={agent.awaitingApproval?.detail ?? ""}
+            onContinue={agent.resumeAfterBilling}
+          />
+        )}
 
         {awaitingPlanApproval && (
           <div className="space-y-2 rounded-sm border border-primary/40 bg-primary/5 p-4">
@@ -291,13 +308,15 @@ function BuilderPage() {
                     agent.run(prompt, inspirationUrl ? { inspirationUrl } : undefined)
                   }
                   onStop={agent.stop}
-                  disabled={!configured || awaitingPlanApproval}
+                  disabled={!configured || awaitingPlanApproval || awaitingBilling}
                   disabledReason={
                     !configured
                       ? "Set an AI provider + key (or CRUZ's default AI) in AI settings above to start building."
                       : awaitingPlanApproval
                         ? "Approve the plan above before continuing."
-                        : undefined
+                        : awaitingBilling
+                          ? "Add funds or authorize spending above to keep building."
+                          : undefined
                   }
                 />
               </div>

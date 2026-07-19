@@ -4,6 +4,7 @@ import { Check, Github } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Button } from "@/components/ui/button";
 import { useDeployConnections } from "@/lib/studio/deployConnections";
+import { UsageDashboard } from "@/components/studio/billing/UsageDashboard";
 
 export const Route = createFileRoute("/settings")({
   head: () => ({ meta: [{ title: "Settings | CRUZ" }] }),
@@ -22,6 +23,9 @@ function SettingsPage() {
       />
       <div className="space-y-4 p-6">
         <GithubSection />
+        <div className="rounded-sm border border-border bg-surface p-4">
+          <UsageDashboard />
+        </div>
       </div>
     </div>
   );

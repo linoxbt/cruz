@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { chatStream, type ChatMessage } from "@/lib/ai";
+import { chatStream, BillingBlockedError, type ChatMessage } from "@/lib/ai";
 import { buildAgentSystemPrompt } from "@/lib/studio-ai/agentPrompt";
 import {
   parseFileMap,
@@ -29,6 +29,8 @@ import {
   type Conversation,
 } from "@/lib/studio-ai/conversations";
 import { fetchUrlForInspiration } from "@/lib/api/inspect.functions";
+import { preflightGeneration } from "@/lib/api/billing.functions";
+import { getBillingContext } from "@/lib/billing/billingStore";
 import type { UaInitConfig } from "@/lib/studio-templates/universalAccountInit";
 
 // The AI Builder's generation engine, keyed by conversation id and living at
@@ -58,6 +60,21 @@ const MAX_TURNS = 8;
 const MAX_MCP_CALLS = 5;
 const BUNDLE_ENTRY = "src/main.tsx";
 
+// User-facing copy for a billing block, by reason. Kept here (not in the
+// billing module) because it's AI-Builder-flow phrasing, not ledger logic.
+function billingBlockDetail(reason: string | undefined): string {
+  switch (reason) {
+    case "needs-funding":
+      return "You're out of free prompts and your CRUZ balance is too low. Add funds to keep building.";
+    case "revoked":
+      return "Spending authorization was revoked. Re-authorize to keep building; your balance is preserved.";
+    case "not-authorized":
+    case "trial-exhausted":
+    default:
+      return "You've used your free prompts. Authorize spending and add funds to keep building.";
+  }
+}
+
 export interface AgentRunState {
   running: boolean;
   streamingFiles: Record<string, string>;
@@ -84,12 +101,17 @@ interface Internal {
   messages: ChatMessage[];
   stopFlag: boolean;
   abort: AbortController | null;
+  // One generation id per user prompt (set in run(), reused by approvePlan/
+  // continueBuilding so a paused-then-resumed build counts as ONE prompt for
+  // free-tier purposes). Threaded to /api/ai so the server meters/charges by
+  // it. Empty until the first run().
+  gid: string;
 }
 const internals = new Map<string, Internal>();
 function getInternal(id: string): Internal {
   let i = internals.get(id);
   if (!i) {
-    i = { messages: [], stopFlag: false, abort: null };
+    i = { messages: [], stopFlag: false, abort: null, gid: "" };
     internals.set(id, i);
   }
   return i;
@@ -121,6 +143,9 @@ interface AgentRuntimeStore {
    *  large build doesn't dead-end just because it needed more iterations
    *  than the cap allows in one call. */
   continueBuilding: (conversationId: string, cfg: UaInitConfig) => Promise<void>;
+  /** Resumes a generation paused for billing once the wallet is funded/
+   *  authorized — re-runs the pre-loop check, which now passes. */
+  resumeAfterBilling: (conversationId: string, cfg: UaInitConfig) => Promise<void>;
   stop: (conversationId: string) => void;
   apply: (conversationId: string) => void;
   discardPending: (conversationId: string) => void;
@@ -241,6 +266,34 @@ export const useAgentRuntime = create<AgentRuntimeStore>((set, get) => {
     let workingFiles = { ...(conv?.files ?? {}) };
     let sawError = false;
 
+    // Billing pre-flight gate (CRUZ-Default path only; entirely inert when
+    // billing isn't configured — preflightGeneration returns configured:false
+    // and status "free"). Runs ONCE before the loop, covering both run() and
+    // approvePlan()/continueBuilding(). If the wallet is out of free prompts
+    // AND can't pay (not authorized / no balance / revoked), pause with a
+    // billing approval banner instead of making any upstream call.
+    const bctx = getBillingContext();
+    if (bctx) {
+      try {
+        const gate = await preflightGeneration({
+          data: { address: bctx.address, token: bctx.token },
+        });
+        if (gate.ok && "status" in gate && gate.status === "blocked") {
+          useConversations.getState().update(conversationId, {
+            awaitingApproval: { kind: "billing", detail: billingBlockDetail(gate.reason) },
+          });
+          updateLastTool(conversationId, {
+            status: "done",
+            detail: "Awaiting funding/authorization.",
+          });
+          patchRun(conversationId, { running: false });
+          return;
+        }
+      } catch {
+        /* billing check is best-effort — never block a build if it errors */
+      }
+    }
+
     // Populated once per call — empty (and free of any network round-trip
     // cost worth caring about) when MCP_SERVERS isn't configured, so the
     // rest of this function behaves identically to before this existed.
@@ -285,6 +338,9 @@ export const useAgentRuntime = create<AgentRuntimeStore>((set, get) => {
             system: buildAgentSystemPrompt(mcpTools),
             messages: internal.messages,
             signal: controller.signal,
+            billing: bctx
+              ? { address: bctx.address, token: bctx.token, gid: internal.gid }
+              : undefined,
             onDelta: (delta) => {
               full += delta;
               const seen = [...full.matchAll(/###\s*FILE:\s*(\S+)/g)].map((m) => m[1]);
@@ -385,6 +441,18 @@ export const useAgentRuntime = create<AgentRuntimeStore>((set, get) => {
               status: "done",
               detail: "Plan ready, awaiting your approval.",
             });
+            patchRun(conversationId, { running: false });
+            return;
+          }
+          if (e instanceof BillingBlockedError) {
+            // Ran out mid-generation (e.g. free prompts / balance exhausted
+            // between turns). Pause with the billing banner instead of an
+            // opaque error; whatever files were produced so far are kept.
+            useConversations.getState().update(conversationId, {
+              awaitingApproval: { kind: "billing", detail: billingBlockDetail(e.reason) },
+              messages: internal.messages,
+            });
+            updateLastTool(conversationId, { status: "error", detail: e.message });
             patchRun(conversationId, { running: false });
             return;
           }
@@ -592,6 +660,10 @@ export const useAgentRuntime = create<AgentRuntimeStore>((set, get) => {
 
       const internal = getInternal(conversationId);
       internal.stopFlag = false;
+      // A fresh user prompt is a new generation for billing purposes (one
+      // free-prompt unit); approvePlan/continueBuilding reuse this gid so a
+      // paused-then-resumed build isn't counted as a second prompt.
+      internal.gid = newId();
 
       const conv = getConv(conversationId);
       // Seed the in-memory turn buffer from what's persisted only the first
@@ -663,6 +735,7 @@ export const useAgentRuntime = create<AgentRuntimeStore>((set, get) => {
       useConversations.getState().update(conversationId, { awaitingApproval: null });
       const internal = getInternal(conversationId);
       internal.stopFlag = false;
+      if (!internal.gid) internal.gid = newId(); // survive a page reload between run() and approve
       internal.messages.push({
         role: "user",
         content: "Approved — continue and write the files now, following the plan above.",
@@ -681,6 +754,7 @@ export const useAgentRuntime = create<AgentRuntimeStore>((set, get) => {
       useConversations.getState().update(conversationId, { awaitingApproval: null });
       const internal = getInternal(conversationId);
       internal.stopFlag = false;
+      if (!internal.gid) internal.gid = newId(); // survive a page reload before resuming
       internal.messages.push({
         role: "user",
         content:
@@ -689,6 +763,22 @@ export const useAgentRuntime = create<AgentRuntimeStore>((set, get) => {
       pushTimeline(conversationId, { role: "user", content: "Continue building." });
       patchRun(conversationId, { running: true, error: null, streamingFiles: {} });
 
+      await generateAndCheck(conversationId, cfg, { allowPlanPause: false });
+    },
+
+    resumeAfterBilling: async (conversationId, cfg) => {
+      const conv = getConv(conversationId);
+      if (!conv?.awaitingApproval || conv.awaitingApproval.kind !== "billing") return;
+      if ((get().runs[conversationId] ?? EMPTY_RUN).running) return;
+
+      useConversations.getState().update(conversationId, { awaitingApproval: null });
+      const internal = getInternal(conversationId);
+      internal.stopFlag = false;
+      if (!internal.gid) internal.gid = newId();
+      patchRun(conversationId, { running: true, error: null, streamingFiles: {} });
+      // Messages already carry the prompt (and any partial work); the pre-loop
+      // preflight re-checks and, now that the wallet is funded/authorized,
+      // proceeds. allowPlanPause stays off — planning (if any) already ran.
       await generateAndCheck(conversationId, cfg, { allowPlanPause: false });
     },
 

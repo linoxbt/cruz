@@ -83,6 +83,11 @@ interface ChatOptions {
   system: string;
   messages: ChatMessage[];
   signal?: AbortSignal;
+  // Billing context for the "CRUZ Default" (proxy) path only. Threaded into
+  // the POST /api/ai body so the server can meter/charge this generation;
+  // ignored by the BYOK paths (those users pay their own provider directly,
+  // so CRUZ never bills them). Absent/undefined when billing isn't in play.
+  billing?: { address: string; token: string | null; gid: string };
 }
 
 interface StreamOptions extends ChatOptions {
@@ -98,6 +103,7 @@ export async function chatStream({
   messages,
   signal,
   onDelta,
+  billing,
 }: StreamOptions): Promise<string> {
   const s = getAiSettings();
   if (!isAiConfigured()) {
@@ -107,7 +113,7 @@ export async function chatStream({
         : "AI isn't configured. Pick a provider and model, paste your API key, and save in the AI Builder's settings.",
     );
   }
-  if (s.proxy) return streamProxy({ system, messages, signal, onDelta });
+  if (s.proxy) return streamProxy({ system, messages, signal, onDelta, billing });
   return resolveEndpoint(s).kind === "anthropic"
     ? streamAnthropic({ system, messages, signal, onDelta })
     : streamOpenAI({ system, messages, signal, onDelta });
@@ -229,14 +235,41 @@ async function streamAnthropic({
 
 // --- Server proxy (/api/ai) ------------------------------------------------
 
-async function streamProxy({ system, messages, signal, onDelta }: StreamOptions): Promise<string> {
+/** Thrown when the proxy refuses a call for billing reasons (HTTP 402) — a
+ *  distinct type so the AI Builder can surface the funding/authorize prompt
+ *  instead of a generic error. `reason` mirrors the server's block reason. */
+export class BillingBlockedError extends Error {
+  reason: string;
+  constructor(message: string, reason: string) {
+    super(message);
+    this.name = "BillingBlockedError";
+    this.reason = reason;
+  }
+}
+
+async function streamProxy({
+  system,
+  messages,
+  signal,
+  onDelta,
+  billing,
+}: StreamOptions): Promise<string> {
   const sendOnce = async (msgs: ChatMessage[]) => {
     const resp = await fetch("/api/ai", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ system, messages: msgs }),
+      body: JSON.stringify({ system, messages: msgs, billing }),
       signal,
     });
+    if (resp.status === 402) {
+      const body = (await resp.json().catch(() => null)) as {
+        error?: { message?: string; reason?: string };
+      } | null;
+      throw new BillingBlockedError(
+        body?.error?.message || "Out of free prompts. Add funds to continue.",
+        body?.error?.reason || "needs-funding",
+      );
+    }
     if (!resp.ok || !resp.body) throw await providerError(resp, "AI proxy");
     // The proxy tags the stream with the upstream format ("anthropic" | "openai").
     const fmt = resp.headers.get("x-ai-provider") === "anthropic" ? "anthropic" : "openai";
