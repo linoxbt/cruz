@@ -77,6 +77,78 @@ export function extractClosingNote(text: string): string {
   return body.slice(last.index! + last[0].length).trim();
 }
 
+/** The plain-prose reply for a conversational turn (see agentPrompt.ts's
+ *  "is this actually a build request?" branch) — no ANALYSIS/PLAN/FILE
+ *  sections, just an answer, terminated the same `@@DONE` way as any other
+ *  turn. Strips that trailing marker so it isn't shown literally in the chat. */
+export function extractConversationalReply(text: string): string {
+  return text
+    .split(/\n@@DONE\b/)[0]
+    .replace(/^@@DONE\b/, "")
+    .trim();
+}
+
+export interface McpCallRequest {
+  server: string;
+  tool: string;
+  args: Record<string, unknown>;
+  /** Index in `text` right after the parsed JSON args block ends — used to
+   *  trim the partial reply before re-entering the turn with the result. */
+  endIndex: number;
+}
+
+/** Detects a complete `### MCP_CALL: <server>.<tool>` block with its JSON
+ *  args object (see agentPrompt.ts's "Tools available this session"
+ *  section), once the JSON has actually finished streaming — brace-depth
+ *  balanced, respecting string literals so a `{`/`}` inside a quoted value
+ *  doesn't miscount. Returns null while still mid-stream, if no call marker
+ *  is present, or if the JSON is malformed. Only the first call in the
+ *  buffer is ever returned; agentRuntime.ts re-enters the turn after
+ *  handling it, so a second call (if any) is naturally its own detection on
+ *  the next round rather than something this needs to handle at once. */
+export function extractMcpCall(text: string): McpCallRequest | null {
+  const headerMatch = text.match(/###\s*MCP_CALL:\s*(\S+)\.(\S+)\s*\n/);
+  if (!headerMatch) return null;
+  const [header, server, tool] = headerMatch;
+  const jsonStart = (headerMatch.index ?? 0) + header.length;
+  const rest = text.slice(jsonStart);
+  const firstBrace = rest.indexOf("{");
+  if (firstBrace === -1) return null;
+
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  let endIdx = -1;
+  for (let i = firstBrace; i < rest.length; i++) {
+    const ch = rest[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === "\\") escaped = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') inString = true;
+    else if (ch === "{") depth++;
+    else if (ch === "}") {
+      depth--;
+      if (depth === 0) {
+        endIdx = i;
+        break;
+      }
+    }
+  }
+  if (endIdx === -1) return null; // still streaming
+
+  const jsonText = rest.slice(firstBrace, endIdx + 1);
+  let args: Record<string, unknown>;
+  try {
+    args = JSON.parse(jsonText) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+  return { server, tool, args, endIndex: jsonStart + endIdx + 1 };
+}
+
 /** Pulls the model's `### SUGGESTED_NAME: <name>` line (see agentPrompt.ts —
  *  only emitted when the caller told it the project name is still unset).
  *  Returns null if absent. */

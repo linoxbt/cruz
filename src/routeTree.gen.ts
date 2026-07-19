@@ -26,6 +26,7 @@ import { Route as ExplorerTxnsRouteImport } from './routes/explorer.txns'
 import { Route as ExplorerTokensRouteImport } from './routes/explorer.tokens'
 import { Route as ExplorerStatsRouteImport } from './routes/explorer.stats'
 import { Route as ExplorerBlocksRouteImport } from './routes/explorer.blocks'
+import { Route as ApiByokRouteImport } from './routes/api.byok'
 import { Route as ApiAiRouteImport } from './routes/api.ai'
 import { Route as ExplorerTxHashRouteImport } from './routes/explorer.tx.$hash'
 import { Route as ExplorerTokenHashRouteImport } from './routes/explorer.token.$hash'
@@ -118,6 +119,11 @@ const ExplorerBlocksRoute = ExplorerBlocksRouteImport.update({
   path: '/blocks',
   getParentRoute: () => ExplorerRoute,
 } as any)
+const ApiByokRoute = ApiByokRouteImport.update({
+  id: '/api/byok',
+  path: '/api/byok',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAiRoute = ApiAiRouteImport.update({
   id: '/api/ai',
   path: '/api/ai',
@@ -163,6 +169,7 @@ export interface FileRoutesByFullPath {
   '/scaffolder': typeof ScaffolderRoute
   '/settings': typeof SettingsRoute
   '/api/ai': typeof ApiAiRoute
+  '/api/byok': typeof ApiByokRoute
   '/explorer/blocks': typeof ExplorerBlocksRoute
   '/explorer/stats': typeof ExplorerStatsRoute
   '/explorer/tokens': typeof ExplorerTokensRoute
@@ -187,6 +194,7 @@ export interface FileRoutesByTo {
   '/scaffolder': typeof ScaffolderRoute
   '/settings': typeof SettingsRoute
   '/api/ai': typeof ApiAiRoute
+  '/api/byok': typeof ApiByokRoute
   '/explorer/blocks': typeof ExplorerBlocksRoute
   '/explorer/stats': typeof ExplorerStatsRoute
   '/explorer/tokens': typeof ExplorerTokensRoute
@@ -213,6 +221,7 @@ export interface FileRoutesById {
   '/scaffolder': typeof ScaffolderRoute
   '/settings': typeof SettingsRoute
   '/api/ai': typeof ApiAiRoute
+  '/api/byok': typeof ApiByokRoute
   '/explorer/blocks': typeof ExplorerBlocksRoute
   '/explorer/stats': typeof ExplorerStatsRoute
   '/explorer/tokens': typeof ExplorerTokensRoute
@@ -240,6 +249,7 @@ export interface FileRouteTypes {
     | '/scaffolder'
     | '/settings'
     | '/api/ai'
+    | '/api/byok'
     | '/explorer/blocks'
     | '/explorer/stats'
     | '/explorer/tokens'
@@ -264,6 +274,7 @@ export interface FileRouteTypes {
     | '/scaffolder'
     | '/settings'
     | '/api/ai'
+    | '/api/byok'
     | '/explorer/blocks'
     | '/explorer/stats'
     | '/explorer/tokens'
@@ -289,6 +300,7 @@ export interface FileRouteTypes {
     | '/scaffolder'
     | '/settings'
     | '/api/ai'
+    | '/api/byok'
     | '/explorer/blocks'
     | '/explorer/stats'
     | '/explorer/tokens'
@@ -315,6 +327,7 @@ export interface RootRouteChildren {
   ScaffolderRoute: typeof ScaffolderRoute
   SettingsRoute: typeof SettingsRoute
   ApiAiRoute: typeof ApiAiRoute
+  ApiByokRoute: typeof ApiByokRoute
   ApiOauthGithubCallbackRoute: typeof ApiOauthGithubCallbackRoute
 }
 
@@ -439,6 +452,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ExplorerBlocksRouteImport
       parentRoute: typeof ExplorerRoute
     }
+    '/api/byok': {
+      id: '/api/byok'
+      path: '/api/byok'
+      fullPath: '/api/byok'
+      preLoaderRoute: typeof ApiByokRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/ai': {
       id: '/api/ai'
       path: '/api/ai'
@@ -526,6 +546,7 @@ const rootRouteChildren: RootRouteChildren = {
   ScaffolderRoute: ScaffolderRoute,
   SettingsRoute: SettingsRoute,
   ApiAiRoute: ApiAiRoute,
+  ApiByokRoute: ApiByokRoute,
   ApiOauthGithubCallbackRoute: ApiOauthGithubCallbackRoute,
 }
 export const routeTree = rootRouteImport

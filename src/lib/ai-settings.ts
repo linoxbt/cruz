@@ -194,12 +194,15 @@ export function isAiConfigured(): boolean {
 // --- Server-proxy status ----------------------------------------------------
 //
 // The `proxy` toggle above only records the user's *preference* — it can't
-// know on its own whether CRUZ's server actually has a key configured.
-// Trusting it blindly (as isAiConfigured() briefly did) lets a user get stuck
-// with the toggle on and every request silently 404/501ing. This checks the
-// real /api/ai status once, caches it, and self-heals the stuck state by
-// flipping the toggle back off if the server turns out not to be configured.
-
+// know on its own whether CRUZ's server actually has a key configured. This
+// checks the real /api/ai status once and caches it, purely as an
+// informational signal for the settings panel ("not configured on this
+// deployment, here's why") — it does NOT override the user's choice. An
+// earlier version silently flipped `proxy` back to false whenever the server
+// looked unconfigured; that took the choice away from the user (they should
+// be able to select whichever mode they want, whenever they want, and see a
+// real error if it doesn't work, rather than being overridden behind their
+// back) — removed.
 export interface AiServerStatus {
   checked: boolean;
   configured: boolean;
@@ -219,12 +222,6 @@ async function checkServerStatus(): Promise<void> {
     serverStatus = { checked: true, configured: !!data.configured };
   } catch {
     serverStatus = { checked: true, configured: false };
-  }
-  // Self-heal: don't leave the user stuck with "use server" selected against
-  // a server that isn't actually configured — every subsequent send would
-  // otherwise fail the same way.
-  if (!serverStatus.configured && useAiSettings.getState().proxy) {
-    useAiSettings.getState().setProxy(false);
   }
   notifyServerStatus();
 }

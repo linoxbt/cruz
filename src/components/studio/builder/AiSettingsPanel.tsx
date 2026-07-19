@@ -47,7 +47,6 @@ export function AiSettingsPanel() {
         draftModel !== settings.model ||
         draftKey !== (settings.keys[draftProvider] ?? "")));
 
-  const canSaveDefault = mode === "default" && serverStatus.configured;
   const canSaveOwn = mode === "own" && draftKey.trim().length > 0;
 
   const handleSave = () => {
@@ -70,9 +69,8 @@ export function AiSettingsPanel() {
       <div className="grid grid-cols-2 gap-2">
         <button
           onClick={() => setMode("default")}
-          disabled={!serverStatus.checked || !serverStatus.configured}
           className={cn(
-            "flex items-center gap-2 rounded-sm border px-3 py-2 text-left font-mono text-xs transition disabled:cursor-not-allowed disabled:opacity-40",
+            "flex items-center gap-2 rounded-sm border px-3 py-2 text-left font-mono text-xs transition",
             mode === "default"
               ? "border-primary bg-primary/10 text-primary"
               : "border-border text-muted-foreground hover:border-primary/50",
@@ -166,10 +164,7 @@ export function AiSettingsPanel() {
       )}
 
       <div className="flex items-center gap-2 pt-1">
-        <Button
-          onClick={handleSave}
-          disabled={!dirty || (mode === "default" ? !canSaveDefault : !canSaveOwn)}
-        >
+        <Button onClick={handleSave} disabled={!dirty || (mode === "own" && !canSaveOwn)}>
           Save
         </Button>
         {justSaved && (

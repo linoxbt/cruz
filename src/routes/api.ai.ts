@@ -189,10 +189,7 @@ export const Route = createFileRoute("/api/ai")({
         const rawBody = await request.json().catch(() => null);
         const parsed = chatBodySchema.safeParse(rawBody);
         if (!parsed.success) {
-          return Response.json(
-            { error: { message: "Invalid request body." } },
-            { status: 400 },
-          );
+          return Response.json({ error: { message: "Invalid request body." } }, { status: 400 });
         }
         const { system = "", messages } = parsed.data;
 

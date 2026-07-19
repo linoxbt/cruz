@@ -29,6 +29,7 @@ const STEP_LABELS: Record<ToolStep["kind"], string> = {
   "protected-file-check": "Checking protected files",
   "structural-check": "Structural check",
   "inspect-url": "Looking at reference site",
+  "mcp-call": "Calling a tool",
   spec: "Analyzing the request",
   scaffold: "Scaffolding files",
   implement: "Implementing changes",

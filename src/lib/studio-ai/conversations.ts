@@ -17,6 +17,7 @@ export type ToolStepKind =
   | "protected-file-check"
   | "structural-check"
   | "inspect-url"
+  | "mcp-call"
   | "spec"
   | "scaffold"
   | "implement"

@@ -26,15 +26,10 @@ import { ConversationList } from "@/components/studio/builder/ConversationList";
 import { DeployContractPanel } from "@/components/studio/builder/DeployContractPanel";
 import { FileDiffPreview } from "@/components/studio/builder/FileDiffPreview";
 import { LivePreview } from "@/components/studio/builder/LivePreview";
-import { ModePicker } from "@/components/studio/builder/ModePicker";
 import { ResultPanel } from "@/components/studio/scaffolder/ResultPanel";
 import { useAppAgent } from "@/hooks/useAppAgent";
 import { useAiSettings, useAiServerStatus } from "@/lib/ai-settings";
-import {
-  useConversations,
-  DEFAULT_PROJECT_NAME,
-  type BuildMode,
-} from "@/lib/studio-ai/conversations";
+import { useConversations, DEFAULT_PROJECT_NAME } from "@/lib/studio-ai/conversations";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/builder")({
@@ -58,14 +53,14 @@ function BuilderPage() {
   const selectConversation = useConversations((s) => s.select);
   const updateConversation = useConversations((s) => s.update);
 
-  // Starting a build always asks Auto vs Manual first (see ModePicker) —
-  // shown in place of the main content whenever there's nothing to resume
-  // yet, whether that's the very first visit or an explicit "+ New".
-  const [showModePicker, setShowModePicker] = useState(conversations.length === 0);
-  const startNew = (mode: BuildMode) => {
-    const id = createConversation(DEFAULT_PROJECT_NAME, mode);
+  // New conversations always start in "manual" mode (checks in after the
+  // first plan before writing anything) — the agent asks inline, as part of
+  // the plan-approval banner below, whether to keep checking in or continue
+  // on its own for the rest of THIS build, instead of a separate upfront
+  // screen before you've said anything.
+  const startNew = () => {
+    const id = createConversation(DEFAULT_PROJECT_NAME, "manual");
     selectConversation(id);
-    setShowModePicker(false);
     setConversationsOpen(false);
     setActivePath(null);
   };
@@ -128,7 +123,7 @@ function BuilderPage() {
     setSecurityAcknowledged(false);
   }, [agent.pendingFiles]);
 
-  if (showModePicker || !conversation) {
+  if (!conversation) {
     return (
       <div>
         <PageHeader
@@ -142,13 +137,17 @@ function BuilderPage() {
               activeId={activeId}
               onSelect={(id) => {
                 selectConversation(id);
-                setShowModePicker(false);
                 setActivePath(null);
               }}
-              onCreate={() => setShowModePicker(true)}
+              onCreate={startNew}
             />
           )}
-          <ModePicker onChoose={startNew} />
+          <button
+            onClick={startNew}
+            className="w-full rounded-sm border border-dashed border-border bg-surface p-6 text-center font-mono text-sm text-muted-foreground transition hover:border-primary/50 hover:text-foreground"
+          >
+            Start a new AI Builder conversation
+          </button>
         </div>
       </div>
     );
@@ -234,7 +233,7 @@ function BuilderPage() {
             }}
             onCreate={() => {
               setConversationsOpen(false);
-              setShowModePicker(true);
+              startNew();
             }}
           />
         )}
@@ -244,12 +243,27 @@ function BuilderPage() {
         {awaitingPlanApproval && (
           <div className="space-y-2 rounded-sm border border-primary/40 bg-primary/5 p-4">
             <div className="flex items-center gap-1.5 font-mono text-xs font-bold text-primary">
-              <CheckCircle2 className="h-3.5 w-3.5" /> Manual mode: review the plan above
+              <CheckCircle2 className="h-3.5 w-3.5" /> Review the plan above
             </div>
             <p className="font-mono text-[11px] text-muted-foreground">
               {agent.awaitingApproval?.detail} No files have been written or checked yet.
             </p>
-            <Button onClick={agent.approvePlan}>Approve &amp; continue</Button>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button onClick={agent.approvePlan}>Approve &amp; continue</Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  if (activeId) updateConversation(activeId, { mode: "auto" });
+                  agent.approvePlan();
+                }}
+              >
+                Approve &amp; continue on your own from here
+              </Button>
+            </div>
+            <p className="font-mono text-[10px] text-meta">
+              The second option skips checking in after future plans in this conversation and only
+              pauses for security-relevant findings before Apply.
+            </p>
           </div>
         )}
 

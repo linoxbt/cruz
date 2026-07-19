@@ -16,6 +16,7 @@
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
     "@magiclabs/wagmi-connector": "^2.3.2",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "@monaco-editor/react": "^4.7.0",
     "@particle-network/universal-account-sdk": "^2.0.3",
     "@radix-ui/react-accordion": "^1.2.12",

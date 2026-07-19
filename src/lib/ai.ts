@@ -9,7 +9,12 @@
 //
 // The two direct modes are bring-your-own-key: the user pastes a key in the
 // AI Builder's settings panel, stored in this browser only, same trust
-// model as the Scaffolder's GitHub token.
+// model as the Scaffolder's GitHub token. The actual request still goes
+// through one server-side hop (POST /api/byok, see forwardByok() below) —
+// not because the key needs to touch our server for any credential reason,
+// but because native OpenAI's API has no CORS support for direct
+// browser-origin requests at all, and this keeps every provider's request
+// path uniform instead of depending on which ones happen to allow it.
 
 import {
   getAiSettings,
@@ -101,6 +106,31 @@ export async function chat(opts: ChatOptions): Promise<string> {
   return out;
 }
 
+// --- BYOK forwarding (/api/byok) --------------------------------------------
+//
+// Every bring-your-own-key call routes through one server-side hop instead
+// of fetching the provider directly from the browser. Native OpenAI's API
+// has no CORS support for browser-origin requests at all — a direct fetch()
+// fails at the preflight stage with nothing more specific than "Failed to
+// fetch" — and depending on which providers happen to allow direct browser
+// access (Anthropic does via an opt-in header; OpenAI doesn't) made this
+// fragile per-provider. Forwarding uniformly sidesteps CORS entirely
+// (server-to-server has no browser-origin restriction) and drops the need
+// for Anthropic's special browser header too.
+async function forwardByok(
+  endpoint: string,
+  headers: Record<string, string>,
+  body: string,
+  signal?: AbortSignal,
+): Promise<Response> {
+  return fetch("/api/byok", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ endpoint, headers, body }),
+    signal,
+  });
+}
+
 // --- Anthropic (native Messages API) ---------------------------------------
 
 async function streamAnthropic({
@@ -125,24 +155,19 @@ async function streamAnthropic({
           ...messages,
         ]
       : messages;
-  const resp = await fetch(`${endpoint}/v1/messages`, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "x-api-key": activeKey(s),
-      "anthropic-version": ANTHROPIC_VERSION,
-      // Required for calls that originate from a browser.
-      "anthropic-dangerous-direct-browser-access": "true",
-    },
-    body: JSON.stringify({
-      model: s.model,
-      max_tokens: MAX_TOKENS,
-      ...(is0g ? {} : { system }),
-      messages: anthropicMessages,
-      stream: true,
-    }),
-    signal,
+  const body = JSON.stringify({
+    model: s.model,
+    max_tokens: MAX_TOKENS,
+    ...(is0g ? {} : { system }),
+    messages: anthropicMessages,
+    stream: true,
   });
+  const headers = {
+    "content-type": "application/json",
+    "x-api-key": activeKey(s),
+    "anthropic-version": ANTHROPIC_VERSION,
+  };
+  const resp = await forwardByok(`${endpoint}/v1/messages`, headers, body, signal);
 
   if (!resp.ok || !resp.body) throw await providerError(resp, "Anthropic");
   return consumeStream(resp.body, "anthropic", onDelta);
@@ -169,25 +194,21 @@ async function streamOpenAI({ system, messages, signal, onDelta }: StreamOptions
   const s = getAiSettings();
   const { endpoint } = resolveEndpoint(s);
   const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${activeKey(s)}`,
+    "content-type": "application/json",
+    authorization: `Bearer ${activeKey(s)}`,
   };
   // OpenRouter recommends these attribution headers (optional, harmless elsewhere).
   if (endpoint.includes("openrouter")) {
     headers["HTTP-Referer"] = "https://cruz.dev";
     headers["X-Title"] = "CRUZ";
   }
-  const resp = await fetch(endpoint, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({
-      model: s.model,
-      messages: [{ role: "system", content: system }, ...messages],
-      temperature: 0.2,
-      stream: true,
-    }),
-    signal,
+  const body = JSON.stringify({
+    model: s.model,
+    messages: [{ role: "system", content: system }, ...messages],
+    temperature: 0.2,
+    stream: true,
   });
+  const resp = await forwardByok(endpoint, headers, body, signal);
 
   if (!resp.ok || !resp.body) throw await providerError(resp, AI_PROVIDERS[s.provider].label);
   return consumeStream(resp.body, "openai", onDelta);

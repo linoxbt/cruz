@@ -1,12 +1,16 @@
 import { create } from "zustand";
 import { chatStream, type ChatMessage } from "@/lib/ai";
-import { CRUZ_AGENT_SYSTEM_PROMPT } from "@/lib/studio-ai/agentPrompt";
+import { buildAgentSystemPrompt } from "@/lib/studio-ai/agentPrompt";
 import {
   parseFileMap,
   extractPlan,
   extractClosingNote,
   extractSuggestedName,
+  extractConversationalReply,
+  extractMcpCall,
+  type McpCallRequest,
 } from "@/lib/studio-ai/parseFileMap";
+import { listMcpTools, callMcpTool } from "@/lib/api/mcp.functions";
 import { runStructuralChecks, type StructuralFinding } from "@/lib/studio-ai/structuralCheck";
 import { enforceProtectedFiles } from "@/lib/studio-ai/protectedFiles";
 import { bundleForPreview } from "@/lib/studio-ai/livePreviewBundler";
@@ -47,6 +51,11 @@ import type { UaInitConfig } from "@/lib/studio-templates/universalAccountInit";
 // `allowPlanPause` for exactly where that happens.
 const MAX_FIX_ATTEMPTS = 5;
 const MAX_TURNS = 8;
+// Caps how many MCP tool round-trips a single generateAndCheck() call can
+// make (see mcp.functions.ts) — prevents a misbehaving/looping model from
+// burning turns on tool calls indefinitely. Irrelevant when no MCP servers
+// are configured (mcpTools is empty, the check is never even reached).
+const MAX_MCP_CALLS = 5;
 const BUNDLE_ENTRY = "src/main.tsx";
 
 export interface AgentRunState {
@@ -227,9 +236,25 @@ export const useAgentRuntime = create<AgentRuntimeStore>((set, get) => {
     let workingFiles = { ...(conv?.files ?? {}) };
     let sawError = false;
 
+    // Populated once per call — empty (and free of any network round-trip
+    // cost worth caring about) when MCP_SERVERS isn't configured, so the
+    // rest of this function behaves identically to before this existed.
+    let mcpTools: Awaited<ReturnType<typeof listMcpTools>>["tools"] = [];
+    try {
+      mcpTools = (await listMcpTools()).tools;
+    } catch {
+      /* MCP listing is best-effort — never block a normal build over it */
+    }
+
     try {
       let turn = 0;
       let fixAttempts = 0;
+      let mcpAttempts = 0;
+      // True until the first REAL model response (one that isn't just an
+      // MCP round-trip) completes — decoupled from `turn` so that one or
+      // more tool calls preceding the actual plan don't consume the single
+      // manual-mode pause opportunity that used to be tied to `turn === 1`.
+      let firstRealTurn = true;
 
       while (turn < MAX_TURNS) {
         turn++;
@@ -245,12 +270,14 @@ export const useAgentRuntime = create<AgentRuntimeStore>((set, get) => {
         let full = "";
         let planPushed = false;
         let pausedForPlan = false;
+        let pausedForMcp = false;
+        let mcpRequest: McpCallRequest | null = null;
         const controller = new AbortController();
         internal.abort = controller;
 
         try {
           await chatStream({
-            system: CRUZ_AGENT_SYSTEM_PROMPT,
+            system: buildAgentSystemPrompt(mcpTools),
             messages: internal.messages,
             signal: controller.signal,
             onDelta: (delta) => {
@@ -270,17 +297,74 @@ export const useAgentRuntime = create<AgentRuntimeStore>((set, get) => {
                 if (plan) {
                   pushTimeline(conversationId, { role: "assistant", plan });
                   planPushed = true;
-                  if (opts.allowPlanPause && turn === 1 && mode === "manual") {
+                  if (opts.allowPlanPause && firstRealTurn && mode === "manual") {
                     pausedForPlan = true;
                     controller.abort();
                   }
                 }
               }
               if (latest) updateLastTool(conversationId, { detail: `Writing ${latest}…` });
+
+              // MCP tool-call detection (see agentPrompt.ts's "Tools
+              // available this session") — only checked while at least one
+              // server is actually configured, before any FILE marker (a
+              // call belongs in the reasoning prefix, never interleaved
+              // with file content), and under the per-generation cap.
+              if (!pausedForMcp && !latest && mcpTools.length > 0 && mcpAttempts < MAX_MCP_CALLS) {
+                const call = extractMcpCall(full);
+                if (call) {
+                  mcpRequest = call;
+                  pausedForMcp = true;
+                  controller.abort();
+                }
+              }
+
               patchRun(conversationId, { streamingFiles: parseFileMap(full) });
             },
           });
         } catch (e) {
+          if (pausedForMcp && mcpRequest) {
+            const req: McpCallRequest = mcpRequest;
+            mcpAttempts++;
+            // Trim anything that may have streamed in past the JSON close
+            // before abort() actually took effect — the model never
+            // "committed" to that trailing text, so it shouldn't end up in
+            // its own message history.
+            internal.messages.push({ role: "assistant", content: full.slice(0, req.endIndex) });
+            pushTimeline(conversationId, {
+              role: "tool",
+              tool: { kind: "mcp-call", status: "running", detail: `${req.server}.${req.tool}` },
+            });
+            let resultText: string;
+            try {
+              const res = await callMcpTool({
+                data: { server: req.server, tool: req.tool, args: req.args },
+              });
+              if (res.ok) {
+                updateLastTool(conversationId, {
+                  status: "done",
+                  detail: `${req.server}.${req.tool}`,
+                });
+                resultText =
+                  res.result.content
+                    .map((c) => c.text ?? "")
+                    .filter(Boolean)
+                    .join("\n") || "(no output)";
+              } else {
+                updateLastTool(conversationId, { status: "error", detail: res.error });
+                resultText = `Error: ${res.error}`;
+              }
+            } catch (mcpErr) {
+              const msg = mcpErr instanceof Error ? mcpErr.message : "MCP call failed.";
+              updateLastTool(conversationId, { status: "error", detail: msg });
+              resultText = `Error: ${msg}`;
+            }
+            internal.messages.push({
+              role: "user",
+              content: `[MCP RESULT] ${req.server}.${req.tool} returned:\n${resultText}`,
+            });
+            continue;
+          }
           if (pausedForPlan) {
             // Not a real failure — save the plan-only partial as this turn's
             // assistant message and pause for approval.
@@ -303,9 +387,30 @@ export const useAgentRuntime = create<AgentRuntimeStore>((set, get) => {
         }
 
         internal.messages.push({ role: "assistant", content: full });
+        firstRealTurn = false;
 
         const produced = parseFileMap(full);
         if (Object.keys(produced).length === 0) {
+          if (!planPushed) {
+            // Conversational turn, not a failure: the model decided this
+            // message was a question/inquiry (see agentPrompt.ts's "is this
+            // actually a build request?" branch) and answered in prose
+            // instead of building anything. Undo the in_progress marks
+            // beginStep set above (nothing was actually attempted) rather
+            // than showing this as an error.
+            updateLastTool(conversationId, { status: "done", detail: "Answered." });
+            finishStep(conversationId, "spec", "Answered without changing the project.");
+            patchStep(conversationId, scaffoldKind, {
+              status: "pending",
+              startedAt: undefined,
+              detail: undefined,
+            });
+            const reply = extractConversationalReply(full);
+            if (reply) pushTimeline(conversationId, { role: "assistant", content: reply });
+            useConversations.getState().update(conversationId, { messages: internal.messages });
+            patchRun(conversationId, { running: false });
+            return;
+          }
           updateLastTool(conversationId, { status: "error", detail: "No files were produced." });
           patchRun(conversationId, {
             error: "The agent didn't produce any files, try rephrasing your request.",

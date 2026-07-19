@@ -5,7 +5,30 @@
 //     error logger plugins, and sandbox detection (port/host/strictPort).
 // You can pass additional config via defineConfig({ vite: { ... }, etc... }) if needed.
 import process from "node:process";
+import fs from "node:fs";
+import path from "node:path";
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
+
+// Load .env.local into process.env for EVERY var, not just VITE_-prefixed
+// ones. @lovable.dev/vite-tanstack-config's own env handling calls Vite's
+// loadEnv(mode, cwd, "VITE_") — that third argument means it only ever loads
+// VITE_-prefixed vars into import.meta.env. Server-only vars (ZG_API_KEY,
+// AI_PROVIDER, ANTHROPIC_API_KEY, GITHUB_OAUTH_CLIENT_SECRET, MCP_SERVERS,
+// ...) never reach process.env any other way — confirmed live: GET /api/ai
+// returned {"configured":false} despite .env.local having a real
+// AI_PROVIDER/ZG_API_KEY, because the dev server was started via a bare
+// `node .../vite dev` rather than `bun run dev` (only Bun auto-loads the
+// full .env.local into process.env; a plain node/npm invocation doesn't).
+// Loading it explicitly here makes this robust to how the process is
+// actually started, instead of silently depending on it. Guarded: real
+// hosts (Vercel/Netlify/etc) inject env vars directly and don't ship a
+// .env.local file, and process.loadEnvFile() throws on a missing path.
+// Node's loadEnvFile never overrides a var that's already set in
+// process.env, so this can't clobber a real platform-injected value.
+const envLocalPath = path.resolve(process.cwd(), ".env.local");
+if (fs.existsSync(envLocalPath)) {
+  process.loadEnvFile(envLocalPath);
+}
 
 // Deploy target selection.
 //
@@ -65,6 +88,27 @@ export default defineConfig({
     // to `undefined` instead of throwing, and the SDK's own `||` fallback
     // then supplies its hardcoded default (CRUZ's explicit override still
     // wins either way).
-    define: { process: JSON.stringify({ env: {} }) },
+    //
+    // CRITICAL: this must be scoped to the CLIENT environment only, not a
+    // top-level `define` (which applies to every environment, including the
+    // SSR/server-fn build). A top-level define was the actual root cause of
+    // the AI Builder being "unresponsive"/"failed to fetch": every server
+    // function (api.ai.ts, api.oauth.github.callback.ts, studio.functions.ts,
+    // ...) reads real env vars via `process.env.X`, and esbuild's define does
+    // a blind textual substitution of every free `process` reference — so
+    // `process.env.ZG_API_KEY` in SERVER code was ALSO being rewritten to
+    // `({env:{}}).env.ZG_API_KEY` (always undefined) at build time, no matter
+    // what was actually in the environment. Confirmed live: GET /api/ai
+    // returned {"configured":false} with a real ZG_API_KEY set, and a direct
+    // diagnostic inside api.ai.ts's handler threw
+    // `TypeError: define_process_default.cwd is not a function` — proof
+    // `process` itself had been replaced by the define's plain object literal
+    // in that execution context. `environments.client` (Vite's per-environment
+    // config, already used one line below by the base config for its own
+    // NODE_ENV define) scopes this to the browser bundle only, leaving every
+    // server-side `process.env` read genuinely reading the real environment.
+    environments: {
+      client: { define: { process: JSON.stringify({ env: {} }) } },
+    },
   },
 });
