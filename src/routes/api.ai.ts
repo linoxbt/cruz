@@ -73,7 +73,12 @@ function isConfigured(c: ServerConfig): boolean {
   return !!c.openai.endpoint && !!c.openai.key;
 }
 
-const MAX_TOKENS = 8192;
+// Cap on ONE provider call's reply length, not the overall turn — the
+// client (src/lib/ai.ts) automatically continues past a length-limited
+// cutoff with further calls when needed, so this stays moderate rather than
+// the provider's real ceiling (confirmed live to accept up to at least
+// 128000) to avoid a single request risking a platform function timeout.
+const MAX_TOKENS = 16000;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 const chatBodySchema = z.object({
@@ -149,6 +154,7 @@ async function upstreamRequest(
       model: c.openai.model,
       messages: [{ role: "system", content: system }, ...messages],
       temperature: 0.2,
+      max_tokens: MAX_TOKENS,
       stream: true,
     }),
     signal,

@@ -33,9 +33,23 @@ export interface ChatMessage {
   content: string;
 }
 
-// Cap on the assistant's reply length per turn. Responses stream, so this is
-// a length bound, not a timeout one.
-const MAX_TOKENS = 8192;
+// Cap on ONE provider call's reply length. Responses stream, so this is a
+// length bound, not a timeout one. Deliberately moderate (not the provider's
+// real ceiling, confirmed live to accept up to at least 128000) rather than
+// very large: a single request that runs long risks tripping a platform
+// function timeout (Netlify/Vercel serverless) before it ever finishes.
+// Anything that needs more room than this keeps going via the automatic
+// continuation loop below instead of one giant call.
+const MAX_TOKENS = 16000;
+// How many times a single logical turn will auto-continue past a
+// length-limited cutoff before giving up and returning whatever's been
+// produced so far. Chosen so a genuinely large multi-file response (the
+// original chronic-truncation bug — "production-ready app" style requests
+// cutting off mid-file on nearly every turn) completes as one seamless
+// stream instead of the model having to notice it was cut off and manually
+// re-emit whole files from scratch, which is what silently burned through
+// MAX_TURNS/MAX_FIX_ATTEMPTS in agentRuntime.ts before this existed.
+const MAX_CONTINUATIONS = 6;
 const ANTHROPIC_VERSION = "2023-06-01";
 
 // System prompt for the Contract Editor's "Code with AI" panel (single-file
@@ -133,6 +147,44 @@ async function forwardByok(
 
 // --- Anthropic (native Messages API) ---------------------------------------
 
+// Stop/finish reasons that mean "cut off by a length cap," not "the model
+// actually finished" — the trigger for automatic continuation below.
+const TRUNCATED_REASONS = new Set(["max_tokens", "length"]);
+
+// Repeatedly calls `sendOnce` with a growing message list, appending each
+// round's own partial output plus a "keep going" instruction whenever the
+// provider reports it was cut off by a length limit, until a real stop
+// reason arrives or MAX_CONTINUATIONS is exhausted. onDelta already streams
+// every round's chunks as they arrive (each `sendOnce` calls it internally
+// via consumeStream), so from the caller's perspective this is one seamless
+// stream — the model never has to notice its own truncation and manually
+// re-emit a whole file, which is what used to eat through
+// agentRuntime.ts's MAX_TURNS/MAX_FIX_ATTEMPTS on any sufficiently large
+// response.
+async function withContinuation(
+  sendOnce: (messages: ChatMessage[]) => Promise<{ text: string; stopReason: string | null }>,
+  initialMessages: ChatMessage[],
+): Promise<string> {
+  let messages = initialMessages;
+  let full = "";
+  for (let round = 0; round <= MAX_CONTINUATIONS; round++) {
+    const { text, stopReason } = await sendOnce(messages);
+    full += text;
+    if (!stopReason || !TRUNCATED_REASONS.has(stopReason)) break;
+    messages = [
+      ...messages,
+      { role: "assistant", content: text },
+      {
+        role: "user",
+        content:
+          "Your last response was cut off by a length limit before it finished. Continue EXACTLY where you left off (mid-file if you were mid-file) — do not repeat anything already written and do not restate the plan or any earlier file, just resume and carry on with the rest of the protocol.",
+      },
+    ];
+  }
+  if (!full) throw new Error("AI returned an empty response.");
+  return full;
+}
+
 async function streamAnthropic({
   system,
   messages,
@@ -147,45 +199,50 @@ async function streamAnthropic({
   // around it. Native api.anthropic.com doesn't need this and keeps using
   // the real `system` field, which is confirmed correct there.
   const is0g = s.provider === "0g";
-  const anthropicMessages =
-    is0g && system
-      ? [
-          { role: "user" as const, content: system },
-          { role: "assistant" as const, content: "Understood." },
-          ...messages,
-        ]
-      : messages;
-  const body = JSON.stringify({
-    model: s.model,
-    max_tokens: MAX_TOKENS,
-    ...(is0g ? {} : { system }),
-    messages: anthropicMessages,
-    stream: true,
-  });
   const headers = {
     "content-type": "application/json",
     "x-api-key": activeKey(s),
     "anthropic-version": ANTHROPIC_VERSION,
   };
-  const resp = await forwardByok(`${endpoint}/v1/messages`, headers, body, signal);
-
-  if (!resp.ok || !resp.body) throw await providerError(resp, "Anthropic");
-  return consumeStream(resp.body, "anthropic", onDelta);
+  const sendOnce = async (msgs: ChatMessage[]) => {
+    const anthropicMessages =
+      is0g && system
+        ? [
+            { role: "user" as const, content: system },
+            { role: "assistant" as const, content: "Understood." },
+            ...msgs,
+          ]
+        : msgs;
+    const body = JSON.stringify({
+      model: s.model,
+      max_tokens: MAX_TOKENS,
+      ...(is0g ? {} : { system }),
+      messages: anthropicMessages,
+      stream: true,
+    });
+    const resp = await forwardByok(`${endpoint}/v1/messages`, headers, body, signal);
+    if (!resp.ok || !resp.body) throw await providerError(resp, "Anthropic");
+    return consumeStream(resp.body, "anthropic", onDelta);
+  };
+  return withContinuation(sendOnce, messages);
 }
 
 // --- Server proxy (/api/ai) ------------------------------------------------
 
 async function streamProxy({ system, messages, signal, onDelta }: StreamOptions): Promise<string> {
-  const resp = await fetch("/api/ai", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ system, messages }),
-    signal,
-  });
-  if (!resp.ok || !resp.body) throw await providerError(resp, "AI proxy");
-  // The proxy tags the stream with the upstream format ("anthropic" | "openai").
-  const fmt = resp.headers.get("x-ai-provider") === "anthropic" ? "anthropic" : "openai";
-  return consumeStream(resp.body, fmt, onDelta);
+  const sendOnce = async (msgs: ChatMessage[]) => {
+    const resp = await fetch("/api/ai", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ system, messages: msgs }),
+      signal,
+    });
+    if (!resp.ok || !resp.body) throw await providerError(resp, "AI proxy");
+    // The proxy tags the stream with the upstream format ("anthropic" | "openai").
+    const fmt = resp.headers.get("x-ai-provider") === "anthropic" ? "anthropic" : "openai";
+    return consumeStream(resp.body, fmt, onDelta);
+  };
+  return withContinuation(sendOnce, messages);
 }
 
 // --- OpenAI-compatible (/chat/completions) ---------------------------------
@@ -202,30 +259,43 @@ async function streamOpenAI({ system, messages, signal, onDelta }: StreamOptions
     headers["HTTP-Referer"] = "https://cruz.dev";
     headers["X-Title"] = "CRUZ";
   }
-  const body = JSON.stringify({
-    model: s.model,
-    messages: [{ role: "system", content: system }, ...messages],
-    temperature: 0.2,
-    stream: true,
-  });
-  const resp = await forwardByok(endpoint, headers, body, signal);
-
-  if (!resp.ok || !resp.body) throw await providerError(resp, AI_PROVIDERS[s.provider].label);
-  return consumeStream(resp.body, "openai", onDelta);
+  const sendOnce = async (msgs: ChatMessage[]) => {
+    const body = JSON.stringify({
+      model: s.model,
+      messages: [{ role: "system", content: system }, ...msgs],
+      temperature: 0.2,
+      max_tokens: MAX_TOKENS,
+      stream: true,
+    });
+    const resp = await forwardByok(endpoint, headers, body, signal);
+    if (!resp.ok || !resp.body) throw await providerError(resp, AI_PROVIDERS[s.provider].label);
+    return consumeStream(resp.body, "openai", onDelta);
+  };
+  return withContinuation(sendOnce, messages);
 }
 
-// Reads a provider's SSE stream, emitting text deltas. Shared by the direct
-// Anthropic/OpenAI paths and the server proxy (which forwards either format).
+// Reads a provider's SSE stream, emitting text deltas, and reports back the
+// stream's stop/finish reason (see TRUNCATED_REASONS above) so the caller
+// can decide whether to auto-continue past a length-limited cutoff. Shared
+// by the direct Anthropic/OpenAI paths and the server proxy (which forwards
+// either format). Deliberately doesn't throw on empty output itself — a
+// single continuation round legitimately can return little/no new text
+// while still reporting a real stop reason; only the outer continuation
+// loop (withContinuation) is positioned to know whether the OVERALL result
+// ended up empty.
 async function consumeStream(
   body: ReadableStream<Uint8Array>,
   format: "anthropic" | "openai",
   onDelta: (chunk: string) => void,
-): Promise<string> {
+): Promise<{ text: string; stopReason: string | null }> {
   let out = "";
+  let stopReason: string | null = null;
   for await (const data of sseData(body)) {
     if (format === "openai") {
       if (data === "[DONE]") break;
-      let chunk: { choices?: Array<{ delta?: { content?: string } }> };
+      let chunk: {
+        choices?: Array<{ delta?: { content?: string }; finish_reason?: string | null }>;
+      };
       try {
         chunk = JSON.parse(data);
       } catch {
@@ -236,10 +306,12 @@ async function consumeStream(
         out += delta;
         onDelta(delta);
       }
+      const finish = chunk.choices?.[0]?.finish_reason;
+      if (finish) stopReason = finish;
     } else {
       let evt: {
         type?: string;
-        delta?: { type?: string; text?: string };
+        delta?: { type?: string; text?: string; stop_reason?: string | null };
         error?: { message?: string };
       };
       try {
@@ -256,10 +328,12 @@ async function consumeStream(
         out += evt.delta.text;
         onDelta(evt.delta.text);
       }
+      if (evt.type === "message_delta" && evt.delta?.stop_reason) {
+        stopReason = evt.delta.stop_reason;
+      }
     }
   }
-  if (!out) throw new Error("AI returned an empty response.");
-  return out;
+  return { text: out, stopReason };
 }
 
 // Parse a fetch body as Server-Sent Events, yielding the payload after each

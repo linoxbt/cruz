@@ -115,10 +115,13 @@ export interface ChangelogEntry {
 }
 
 /** A build-time decision the agent is paused on until the user acts —
- *  "plan" (manual mode's post-spec pause) or "security" (the existing
- *  new-dependency/install-script review, which applies in both modes). */
+ *  "plan" (manual mode's post-spec pause), "security" (the existing
+ *  new-dependency/install-script review, which applies in both modes), or
+ *  "limit" (an internal safety cap — MAX_TURNS/MAX_FIX_ATTEMPTS — was hit;
+ *  this is a one-click resume, not a dead end, since the underlying work may
+ *  still be genuinely unfinished rather than actually stuck). */
 export interface AwaitingApproval {
-  kind: "plan" | "security";
+  kind: "plan" | "security" | "limit";
   detail: string;
 }
 

@@ -116,6 +116,7 @@ function BuilderPage() {
   const securityFindings = agent.pendingFindings.filter((f) => f.securityRelevant);
   const needsSecurityReview = securityFindings.length > 0 && !securityAcknowledged;
   const awaitingPlanApproval = agent.awaitingApproval?.kind === "plan";
+  const awaitingLimitContinue = agent.awaitingApproval?.kind === "limit";
 
   // Reset the acknowledgment whenever a new pending diff arrives — approving
   // one turn's new dependency shouldn't silently carry over to the next.
@@ -264,6 +265,18 @@ function BuilderPage() {
               The second option skips checking in after future plans in this conversation and only
               pauses for security-relevant findings before Apply.
             </p>
+          </div>
+        )}
+
+        {awaitingLimitContinue && (
+          <div className="space-y-2 rounded-sm border border-warning/40 bg-warning/5 p-4">
+            <div className="flex items-center gap-1.5 font-mono text-xs font-bold text-warning">
+              <AlertTriangle className="h-3.5 w-3.5" /> Hit an internal safety limit
+            </div>
+            <p className="font-mono text-[11px] text-muted-foreground">
+              {agent.awaitingApproval?.detail}
+            </p>
+            <Button onClick={agent.continueBuilding}>Continue building</Button>
           </div>
         )}
 

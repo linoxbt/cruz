@@ -61,6 +61,9 @@ export function useAppAgent(conversationId: string | null, cfg: UaInitConfig) {
     approvePlan: () => {
       if (conversationId) void useAgentRuntime.getState().approvePlan(conversationId, cfg);
     },
+    continueBuilding: () => {
+      if (conversationId) void useAgentRuntime.getState().continueBuilding(conversationId, cfg);
+    },
     stop: () => {
       if (conversationId) useAgentRuntime.getState().stop(conversationId);
     },

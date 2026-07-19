@@ -116,6 +116,11 @@ interface AgentRuntimeStore {
   /** Manual mode's post-spec pause: continue past the plan and let the
    *  files it already drafted get validated/finalized. */
   approvePlan: (conversationId: string, cfg: UaInitConfig) => Promise<void>;
+  /** Resumes after an internal safety cap (MAX_TURNS/MAX_FIX_ATTEMPTS) was
+   *  hit — a one-click continuation, not a fresh prompt, so a genuinely
+   *  large build doesn't dead-end just because it needed more iterations
+   *  than the cap allows in one call. */
+  continueBuilding: (conversationId: string, cfg: UaInitConfig) => Promise<void>;
   stop: (conversationId: string) => void;
   apply: (conversationId: string) => void;
   discardPending: (conversationId: string) => void;
@@ -470,11 +475,15 @@ export const useAgentRuntime = create<AgentRuntimeStore>((set, get) => {
           fixAttempts++;
           patchMetrics(conversationId, (m) => ({ iterations: m.iterations + 1 }));
           if (fixAttempts >= MAX_FIX_ATTEMPTS) {
+            const detail = `Hit the internal safety cap after ${MAX_FIX_ATTEMPTS} fix attempts (structural checks kept failing) — click Continue to keep going with what's been learned so far.`;
             patchRun(conversationId, {
-              error: `Gave up after ${MAX_FIX_ATTEMPTS} fix attempts, structural checks kept failing. See the diff for what exists so far.`,
+              error: detail,
               pendingFiles: workingFiles,
               pendingFindings: findings,
             });
+            useConversations
+              .getState()
+              .update(conversationId, { awaitingApproval: { kind: "limit", detail } });
             failStep(conversationId, scaffoldKind, "Structural checks kept failing.");
             sawError = true;
             break;
@@ -521,11 +530,15 @@ export const useAgentRuntime = create<AgentRuntimeStore>((set, get) => {
           fixAttempts++;
           patchMetrics(conversationId, (m) => ({ iterations: m.iterations + 1 }));
           if (fixAttempts >= MAX_FIX_ATTEMPTS) {
+            const detail = `Hit the internal safety cap after ${MAX_FIX_ATTEMPTS} fix attempts — the bundle kept failing to build (${bundleError}). Click Continue to keep going with what's been learned so far.`;
             patchRun(conversationId, {
-              error: `Gave up after ${MAX_FIX_ATTEMPTS} fix attempts, the bundle kept failing to build: ${bundleError}`,
+              error: detail,
               pendingFiles: workingFiles,
               pendingFindings: findings,
             });
+            useConversations
+              .getState()
+              .update(conversationId, { awaitingApproval: { kind: "limit", detail } });
             failStep(conversationId, "test", bundleError);
             sawError = true;
             break;
@@ -551,9 +564,11 @@ export const useAgentRuntime = create<AgentRuntimeStore>((set, get) => {
         return;
       }
       if (turn >= MAX_TURNS && !sawError) {
-        patchRun(conversationId, {
-          error: `Gave up after ${MAX_TURNS} turns without a clean result.`,
-        });
+        const detail = `Hit the internal safety cap after ${MAX_TURNS} turns without a clean result — click Continue to keep going with what's been learned so far.`;
+        patchRun(conversationId, { error: detail });
+        useConversations
+          .getState()
+          .update(conversationId, { awaitingApproval: { kind: "limit", detail } });
       }
     } catch (e) {
       if (internal.stopFlag || (e instanceof DOMException && e.name === "AbortError")) {
@@ -585,6 +600,12 @@ export const useAgentRuntime = create<AgentRuntimeStore>((set, get) => {
       // same in-memory buffer, matching ordinary chat-history behavior.
       if (internal.messages.length === 0 && conv?.messages?.length) {
         internal.messages = [...conv.messages];
+      }
+      // A fresh prompt is an equally valid way to move past a stale "hit the
+      // safety cap" banner as clicking Continue — don't leave it showing
+      // once the user's chosen to just say what's next themselves.
+      if (conv?.awaitingApproval?.kind === "limit") {
+        useConversations.getState().update(conversationId, { awaitingApproval: null });
       }
       const files = conv?.files ?? {};
 
@@ -647,6 +668,25 @@ export const useAgentRuntime = create<AgentRuntimeStore>((set, get) => {
         content: "Approved — continue and write the files now, following the plan above.",
       });
       pushTimeline(conversationId, { role: "user", content: "Approved, continuing." });
+      patchRun(conversationId, { running: true, error: null, streamingFiles: {} });
+
+      await generateAndCheck(conversationId, cfg, { allowPlanPause: false });
+    },
+
+    continueBuilding: async (conversationId, cfg) => {
+      const conv = getConv(conversationId);
+      if (!conv?.awaitingApproval || conv.awaitingApproval.kind !== "limit") return;
+      if ((get().runs[conversationId] ?? EMPTY_RUN).running) return;
+
+      useConversations.getState().update(conversationId, { awaitingApproval: null });
+      const internal = getInternal(conversationId);
+      internal.stopFlag = false;
+      internal.messages.push({
+        role: "user",
+        content:
+          "Continue exactly where you left off — do not restart from scratch or repeat earlier files unless they still need fixing.",
+      });
+      pushTimeline(conversationId, { role: "user", content: "Continue building." });
       patchRun(conversationId, { running: true, error: null, streamingFiles: {} });
 
       await generateAndCheck(conversationId, cfg, { allowPlanPause: false });
