@@ -54,7 +54,7 @@ import type { TerminalLine } from "@/components/shared/TerminalOutput";
 // writing/debugging/explaining a single contract (distinct from the AI
 // Builder, which generates whole projects).
 export const Route = createFileRoute("/editor")({
-  head: () => ({ meta: [{ title: "Contract Editor — CRUZ" }] }),
+  head: () => ({ meta: [{ title: "Contract Editor | CRUZ" }] }),
   component: EditorPage,
 });
 
@@ -153,7 +153,7 @@ function EditorPage() {
         } else {
           const count = Object.keys(result.contracts).length;
           logT({
-            text: `[${ts}] [Compiler] ✓ Compiled successfully — ${count} contract${count !== 1 ? "s" : ""} (${result.timeMs}ms)`,
+            text: `[${ts}] [Compiler] ✓ Compiled successfully: ${count} contract${count !== 1 ? "s" : ""} (${result.timeMs}ms)`,
             status: "success",
           });
           for (const w of result.warnings) {
@@ -164,12 +164,12 @@ function EditorPage() {
           const found = runStaticAnalysis(src, ws.activePath);
           setFindings(found);
           logT({
-            text: `[${ts}] [Inspector] Running static analysis — ${STATIC_ANALYSIS_CHECK_COUNT} checks...`,
+            text: `[${ts}] [Inspector] Running static analysis: ${STATIC_ANALYSIS_CHECK_COUNT} checks...`,
             status: "pending",
           });
           if (found.length === 0) {
             logT({
-              text: `[${ts}] [Inspector] ✓ Static analysis complete — ${STATIC_ANALYSIS_CHECK_COUNT} checks passed`,
+              text: `[${ts}] [Inspector] ✓ Static analysis complete: ${STATIC_ANALYSIS_CHECK_COUNT} checks passed`,
               status: "success",
             });
           } else {
@@ -428,7 +428,7 @@ function EditorPage() {
       <PageHeader
         breadcrumb={["CRUZ", "Contract Editor"]}
         title="Contract Editor"
-        subtitle="Edit, compile, inspect, and deploy Solidity in a multi-file workspace — with an AI assistant for the file you're working on."
+        subtitle="Edit, compile, inspect, and deploy Solidity in a multi-file workspace, with an AI assistant for the file you're working on."
       />
       <div
         className="flex flex-col overflow-hidden border-t border-border"
@@ -758,7 +758,7 @@ function EditorPage() {
               </span>
             </div>
             <div className="px-4 py-2 font-mono text-[11px] text-meta">
-              Overwrites the whole file —{" "}
+              Overwrites the whole file:{" "}
               <span className="text-success">+{applyDiffStats.added}</span>{" "}
               <span className="text-danger">−{applyDiffStats.removed}</span> lines. Recoverable only
               via editor undo.

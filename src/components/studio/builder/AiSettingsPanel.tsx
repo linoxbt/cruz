@@ -14,9 +14,9 @@ import { cn } from "@/lib/utils";
 
 // Provider/model/key settings for the AI Builder. Two clearly-labeled modes:
 // CRUZ's own default (no key needed, as long as CRUZ's server is configured)
-// or bring-your-own-key — same trust model as the Scaffolder's GitHub/Vercel
-// token cards in ResultPanel.tsx: a key you paste is stored only in this
-// browser, never sent anywhere except that provider's own API.
+// or bring-your-own-key, same trust model as the Scaffolder's GitHub token
+// card in ResultPanel.tsx: a key you paste is stored only in this browser,
+// never sent anywhere except that provider's own API.
 //
 // Nothing commits until Save is clicked — provider/model/key are held as a
 // local draft first, so switching providers to look at models doesn't
@@ -103,13 +103,13 @@ export function AiSettingsPanel() {
 
       {mode === "default" && !serverStatus.configured && serverStatus.checked && (
         <p className="font-mono text-[11px] text-muted-foreground">
-          CRUZ&apos;s default AI isn&apos;t configured on this deployment (see REQUIREMENTS.md) —
-          use your own key instead.
+          CRUZ&apos;s default AI isn&apos;t configured on this deployment (see REQUIREMENTS.md), use
+          your own key instead.
         </p>
       )}
       {mode === "default" && serverStatus.configured && (
         <p className="font-mono text-[11px] text-muted-foreground">
-          Requests route through CRUZ&apos;s own server — no key required, and nothing leaves the
+          Requests route through CRUZ&apos;s own server, no key required, and nothing leaves the
           server.
         </p>
       )}
@@ -157,8 +157,8 @@ export function AiSettingsPanel() {
             />
             {AI_PROVIDERS[draftProvider].keyHint && (
               <p className="mt-1 font-mono text-[10px] text-meta">
-                Get one at {AI_PROVIDERS[draftProvider].keyHint}. Stored only in this browser,
-                sent only to that provider&apos;s own API.
+                Get one at {AI_PROVIDERS[draftProvider].keyHint}. Stored only in this browser, sent
+                only to that provider&apos;s own API.
               </p>
             )}
           </div>

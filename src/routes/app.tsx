@@ -9,11 +9,11 @@ import { useGasPrice } from "@/hooks/useGasPrice";
 import { isParticleConfigured } from "@/lib/studio/particle";
 import { truncateAddress } from "@/lib/wallet";
 import { arbitrumOne } from "@/lib/chains";
-import { CRUZ_MODULES, CRUZ_MODULE_ICONS } from "@/lib/studio/manifest";
+import { CRUZ_MODULES } from "@/lib/studio/manifest";
 import { useState } from "react";
 
 export const Route = createFileRoute("/app")({
-  head: () => ({ meta: [{ title: "Dashboard — CRUZ" }] }),
+  head: () => ({ meta: [{ title: "Dashboard | CRUZ" }] }),
   component: AppDashboard,
 });
 
@@ -38,7 +38,6 @@ function AppDashboard() {
             <DelegationCard address={address} />
           </>
         )}
-        <QuickActions />
       </div>
       {showConnect && <ConnectModal onClose={() => setShowConnect(false)} />}
     </div>
@@ -82,7 +81,7 @@ function LoginBanner({ onConnect }: { onConnect: () => void }) {
           <div>
             <h2 className="font-display text-base font-bold">Log in to see your balance</h2>
             <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-              Email + OTP via Magic — CRUZ shows your Universal Account&apos;s balance across every
+              Email + OTP via Magic, CRUZ shows your Universal Account&apos;s balance across every
               supported chain.
             </p>
           </div>
@@ -175,7 +174,7 @@ function UnifiedBalanceCard({ address }: { address: `0x${string}` }) {
 function ConfigNotice() {
   return (
     <div className="rounded-md border border-warning/40 bg-warning/5 p-3 text-xs text-muted-foreground">
-      Particle Network isn&apos;t configured — set{" "}
+      Particle Network isn&apos;t configured, set{" "}
       <code className="text-foreground">VITE_PARTICLE_*</code> env vars. See REQUIREMENTS.md.
     </div>
   );
@@ -221,34 +220,6 @@ function DelegationCard({ address }: { address: `0x${string}` }) {
             </Link>
           </div>
         )}
-      </div>
-    </div>
-  );
-}
-
-/* ─────────── Quick actions ─────────── */
-
-function QuickActions() {
-  return (
-    <div>
-      <h3 className="mb-3 font-mono text-[11px] uppercase tracking-widest text-meta">
-        Quick actions
-      </h3>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {CRUZ_MODULES.map((m) => {
-          const Icon = CRUZ_MODULE_ICONS[m.id];
-          return (
-            <Link
-              key={m.id}
-              to={m.path}
-              className="group rounded-sm border border-border bg-surface p-4 transition hover:border-primary/50 hover:bg-surface-2"
-            >
-              <Icon className="mb-2 h-5 w-5 text-primary" />
-              <div className="font-display text-sm font-bold">{m.label}</div>
-              <div className="mt-1 text-[11px] text-meta">{m.description}</div>
-            </Link>
-          );
-        })}
       </div>
     </div>
   );

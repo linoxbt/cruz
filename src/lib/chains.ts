@@ -8,6 +8,13 @@ import { defineChain } from "viem";
 const ARBITRUM_RPC = import.meta.env.VITE_ARBITRUM_RPC || "https://arb1.arbitrum.io/rpc";
 const ARBITRUM_EXPLORER = import.meta.env.VITE_ARBITRUM_EXPLORER || "https://arbiscan.io";
 
+// Separate from ARBITRUM_EXPLORER (Arbiscan, used for "view on explorer"
+// links elsewhere in the app) — this is the Blockscout v2 API host CRUZ's own
+// in-app Explorer module reads from server-side. Arbiscan's API needs a
+// registered key; Arbitrum's official Blockscout mirror is free and keyless.
+export const ARBITRUM_BLOCKSCOUT_URL =
+  import.meta.env.VITE_ARBITRUM_BLOCKSCOUT_URL || "https://arbitrum.blockscout.com";
+
 export const arbitrumOne = defineChain({
   id: 42161,
   name: "Arbitrum One",

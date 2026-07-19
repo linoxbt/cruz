@@ -69,7 +69,7 @@ export async function signAndSendWithMagic(
 ) {
   const magic = getSigningMagic();
   if (!magic) {
-    throw new Error("Magic isn't configured — set VITE_MAGIC_PUBLISHABLE_KEY.");
+    throw new Error("Magic isn't configured, set VITE_MAGIC_PUBLISHABLE_KEY.");
   }
 
   const authorizations: EIP7702Authorization[] = [];

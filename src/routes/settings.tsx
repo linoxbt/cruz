@@ -1,13 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { Check, Github, Globe, Rocket } from "lucide-react";
+import { Check, Github } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { useDeployConnections } from "@/lib/studio/deployConnections";
 
 export const Route = createFileRoute("/settings")({
-  head: () => ({ meta: [{ title: "Settings — CRUZ" }] }),
+  head: () => ({ meta: [{ title: "Settings | CRUZ" }] }),
   component: SettingsPage,
 });
 
@@ -19,18 +18,16 @@ function SettingsPage() {
       <PageHeader
         breadcrumb={["CRUZ", "Settings"]}
         title="Settings"
-        subtitle="Connect GitHub, Vercel, and Netlify once here — the Scaffolder and AI Builder read these instead of asking for a token on every deploy."
+        subtitle="Connect GitHub once here, the Scaffolder and AI Builder read this instead of asking for a token on every deploy."
       />
       <div className="space-y-4 p-6">
         <GithubSection />
-        <VercelSection />
-        <NetlifySection />
       </div>
     </div>
   );
 }
 
-/* ─────────── GitHub — real OAuth, no pasted token ─────────── */
+/* ─────────── GitHub, real OAuth, no pasted token ─────────── */
 
 function GithubSection() {
   const github = useDeployConnections((s) => s.github);
@@ -59,7 +56,7 @@ function GithubSection() {
   const connect = () => {
     if (!GITHUB_CLIENT_ID) {
       setError(
-        "GitHub OAuth isn't configured on this deployment — set VITE_GITHUB_OAUTH_CLIENT_ID and GITHUB_OAUTH_CLIENT_SECRET (see REQUIREMENTS.md).",
+        "GitHub OAuth isn't configured on this deployment. Set VITE_GITHUB_OAUTH_CLIENT_ID and GITHUB_OAUTH_CLIENT_SECRET (see REQUIREMENTS.md).",
       );
       return;
     }
@@ -85,7 +82,7 @@ function GithubSection() {
         <Github className="h-4 w-4" /> GitHub
       </div>
       <p className="mt-1 font-mono text-[11px] text-muted-foreground">
-        Authenticates with a real &quot;Login with GitHub&quot; — no personal access token to create
+        Authenticates with a real &quot;Login with GitHub&quot;, no personal access token to create
         or paste. The token this issues is scoped to repo creation only and stored in this browser.
       </p>
       <div className="mt-3">
@@ -104,91 +101,6 @@ function GithubSection() {
           </Button>
         )}
         {error && <p className="mt-2 font-mono text-[11px] text-destructive">{error}</p>}
-      </div>
-    </div>
-  );
-}
-
-/* ─────────── Vercel / Netlify — still pasted tokens, saved once ─────────── */
-
-function VercelSection() {
-  const saved = useDeployConnections((s) => s.vercelToken);
-  const setVercelToken = useDeployConnections((s) => s.setVercelToken);
-  const [draft, setDraft] = useState(saved);
-  const [justSaved, setJustSaved] = useState(false);
-
-  const save = () => {
-    setVercelToken(draft.trim());
-    setJustSaved(true);
-    setTimeout(() => setJustSaved(false), 1600);
-  };
-
-  return (
-    <div className="rounded-sm border border-border bg-surface p-4">
-      <div className="flex items-center gap-2 font-mono text-xs font-bold text-foreground">
-        <Rocket className="h-4 w-4" /> Vercel
-      </div>
-      <p className="mt-1 font-mono text-[11px] text-muted-foreground">
-        Vercel's API doesn't offer a lightweight personal OAuth flow the way GitHub does — this
-        stays a pasted token, just saved once instead of every deploy.
-      </p>
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        <Input
-          type="password"
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          placeholder="Vercel API token"
-          className="max-w-xs font-mono text-xs"
-        />
-        <Button onClick={save} disabled={draft === saved}>
-          Save
-        </Button>
-        {justSaved && (
-          <span className="flex items-center gap-1 font-mono text-xs text-success">
-            <Check className="h-3.5 w-3.5" /> Saved
-          </span>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function NetlifySection() {
-  const saved = useDeployConnections((s) => s.netlifyToken);
-  const setNetlifyToken = useDeployConnections((s) => s.setNetlifyToken);
-  const [draft, setDraft] = useState(saved);
-  const [justSaved, setJustSaved] = useState(false);
-
-  const save = () => {
-    setNetlifyToken(draft.trim());
-    setJustSaved(true);
-    setTimeout(() => setJustSaved(false), 1600);
-  };
-
-  return (
-    <div className="rounded-sm border border-border bg-surface p-4">
-      <div className="flex items-center gap-2 font-mono text-xs font-bold text-foreground">
-        <Globe className="h-4 w-4" /> Netlify
-      </div>
-      <p className="mt-1 font-mono text-[11px] text-muted-foreground">
-        Same as Vercel — a pasted personal access token, saved once here.
-      </p>
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        <Input
-          type="password"
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          placeholder="Netlify personal access token"
-          className="max-w-xs font-mono text-xs"
-        />
-        <Button onClick={save} disabled={draft === saved}>
-          Save
-        </Button>
-        {justSaved && (
-          <span className="flex items-center gap-1 font-mono text-xs text-success">
-            <Check className="h-3.5 w-3.5" /> Saved
-          </span>
-        )}
       </div>
     </div>
   );

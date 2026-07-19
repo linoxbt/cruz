@@ -32,7 +32,7 @@ export function bundleForPreview(
       w.removeEventListener("message", handler);
       w.terminate();
       worker = null;
-      reject(new Error("Bundler timed out — the preview worker didn't respond in time."));
+      reject(new Error("Bundler timed out, the preview worker didn't respond in time."));
     }, BUNDLE_TIMEOUT_MS);
 
     const handler = (

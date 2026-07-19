@@ -22,7 +22,7 @@ Built on [Particle Network](https://particle.network)'s Universal Accounts SDK f
 - **Real EIP-7702 upgrades** — turn a plain EOA into a chain-abstracted Universal Account in one signature, signed through Magic's `sign7702Authorization`.
 - **Unified balance** — see one address's aggregate balance across every chain Particle supports, with a per-chain breakdown.
 - **Cross-chain Universal Transactions** — compose, preview (routing + fees, no side effects), execute, and export a runnable TypeScript snippet that reproduces the exact transaction.
-- **Starter-app scaffolder** — generate a complete, chain-abstracted starter project with Universal Accounts pre-wired, then push it to a fresh GitHub repo or deploy it to Vercel.
+- **Starter-app scaffolder** — generate a complete, chain-abstracted starter project with Universal Accounts pre-wired, then push it to a fresh GitHub repo or download it as a ZIP.
 - **In-browser Solidity** — edit and compile contracts via a `solc` Web Worker, no toolchain install.
 - **Bespoke identity** — ink-navy + electric-violet design system, animated crossing-arcs motif, fully distinct from any underlying template.
 
@@ -56,7 +56,7 @@ cruz/
 │   │   │   ├── exportSnippet.ts  Runnable-code export templating
 │   │   │   └── manifest.ts    Single-source-of-truth module manifest
 │   │   ├── studio-templates/  Scaffolder's file-map template generators
-│   │   ├── api/studio.functions.ts  GitHub + Vercel server functions
+│   │   ├── api/studio.functions.ts  GitHub server functions
 │   │   ├── compiler.ts + compiler.worker.ts  In-browser solc
 │   │   └── burner…            (removed — Magic owns the signer now)
 │   └── styles.css             CRUZ design tokens + animations
@@ -101,7 +101,7 @@ CRUZ follows the standard Vite three-tier env convention. All client-readable va
 | `VITE_ARBITRUM_RPC`          | Public | Arbitrum One RPC URL (default: `https://arb1.arbitrum.io/rpc`; a dedicated provider like Alchemy/Infura is recommended). |
 | `VITE_ARBITRUM_EXPLORER`     | Public | Arbiscan base URL (default: `https://arbiscan.io`).                                                                      |
 
-GitHub and Vercel tokens (for the Scaffolder's delivery paths) are **never** env vars — the user pastes them per-action in the Scaffolder UI; they're sent only for that one request and never persisted or logged. See **[REQUIREMENTS.md](./REQUIREMENTS.md)** for the full breakdown, including the two integration constraints verified against the SDKs' own shipped types:
+The GitHub connection (for the Scaffolder's delivery path) is **never** an env var — it's a real OAuth connection made once on the Settings page. See **[REQUIREMENTS.md](./REQUIREMENTS.md)** for the full breakdown, including the two integration constraints verified against the SDKs' own shipped types:
 
 1. **Arbitrum One only** — Particle's Universal Accounts SDK supports Arbitrum mainnet (chain id `42161`); there is no testnet. Test with small real amounts.
 2. **EIP-7702 needs an embedded signer** — Particle's 7702 mode doesn't support JSON-RPC wallets; Magic's embedded wallet is exactly the supported case, and Magic's `sign7702Authorization` produces the signed authorization Particle's `sendTransaction` expects.
@@ -118,7 +118,7 @@ Compose a cross-chain Universal Transaction (token transfer or arbitrary contrac
 
 ### Starter Scaffolder — `/scaffolder`
 
-Generate a complete, runnable, chain-abstracted starter app either from a fixed TS file-map template (Universal Accounts pre-wired, optional Magic embedded-wallet and gas-sponsorship toggles) or from a project you already built in the AI Builder, then deliver it: push to a fresh GitHub repo, deploy to Vercel or Netlify, or download as a real, runnable ZIP. Any demo contract opens straight in CRUZ's Contract Editor.
+Generate a complete, runnable, chain-abstracted starter app either from a fixed TS file-map template (Universal Accounts pre-wired, optional Magic embedded-wallet and gas-sponsorship toggles) or from a project you already built in the AI Builder, then deliver it: push to a fresh GitHub repo, or download as a real, runnable ZIP. Any demo contract opens straight in CRUZ's Contract Editor.
 
 ### Contract Editor — `/editor`
 
@@ -145,7 +145,7 @@ The EIP-7702 flow is the one piece whose exact wire format isn't fully specified
 
 ## 🔐 Security
 
-- No secrets in the client bundle — `VITE_`-prefixed vars are publishable IDs only; GitHub/Vercel tokens are user-supplied per-request and never persisted.
+- No secrets in the client bundle — `VITE_`-prefixed vars are publishable IDs only; the GitHub OAuth client secret stays server-only.
 - The Magic embedded wallet is the sole signer; CRUZ never holds or transports a private key.
 - The `cruz-*` localStorage key namespace is isolated from any other app on the same origin.
 

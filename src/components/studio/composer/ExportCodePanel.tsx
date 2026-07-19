@@ -8,7 +8,7 @@ export function ExportCodePanel({ input }: { input: ComposerInput | null }) {
   return (
     <div className="rounded-sm border border-border bg-surface p-4">
       <div className="font-mono text-xs uppercase tracking-wider text-meta">
-        Export — drop into a clean project
+        Export: drop into a clean project
       </div>
       <p className="mt-1 font-mono text-[11px] text-muted-foreground">
         Complete TypeScript reproducing this exact transaction. Substitute your own Particle project

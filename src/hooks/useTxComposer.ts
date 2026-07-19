@@ -79,7 +79,7 @@ export function useTxComposer() {
 
     if (!magic || !address) {
       setError(
-        "Connect your CRUZ wallet (Magic) to compose a transaction — you can still export a " +
+        "Connect your CRUZ wallet (Magic) to compose a transaction, you can still export a " +
           "snippet without connecting.",
       );
       setStatus("error");

@@ -84,7 +84,7 @@ export function extractSuggestedName(text: string): string | null {
   const m = text.match(/^###\s*SUGGESTED_NAME:\s*(.+)$/m);
   if (!m) return null;
   // Keep it filesystem/URL-friendly, matching how projectName is used
-  // elsewhere (GitHub repo name, Vercel/Netlify project name).
+  // elsewhere (as the GitHub repo name).
   const name = m[1]
     .trim()
     .toLowerCase()

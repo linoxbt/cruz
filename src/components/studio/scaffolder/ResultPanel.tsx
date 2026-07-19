@@ -1,15 +1,16 @@
 import { useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { Loader2, Github, Rocket, Globe, FileCode2 } from "lucide-react";
+import { Loader2, Github, FileCode2 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { CodeBlock } from "@/components/shared/CodeBlock";
 import { useEditorIntake } from "@/lib/editor-intake";
-import { pushToGithubRepo, deployToVercel, deployToNetlify } from "@/lib/api/studio.functions";
+import { pushToGithubRepo } from "@/lib/api/studio.functions";
 import { UNIFIED_WALLET_TEMPLATE } from "@/lib/studio-templates/unifiedWallet";
 import { downloadZip } from "@/lib/zip";
 import { useDeployConnections } from "@/lib/studio/deployConnections";
+import { useMyActivity } from "@/lib/studio/myActivity";
 
 export function ResultPanel({
   files,
@@ -22,23 +23,16 @@ export function ResultPanel({
   const setPending = useEditorIntake((s) => s.setPending);
 
   const github = useDeployConnections((s) => s.github);
-  const vercelToken = useDeployConnections((s) => s.vercelToken);
-  const netlifyToken = useDeployConnections((s) => s.netlifyToken);
+  const addDeliveredRepo = useMyActivity((s) => s.addDeliveredRepo);
 
   const [githubPrivate, setGithubPrivate] = useState(true);
   const [githubBusy, setGithubBusy] = useState(false);
   const [githubResult, setGithubResult] = useState<{ ok: boolean; message: string } | null>(null);
 
-  const [vercelBusy, setVercelBusy] = useState(false);
-  const [vercelResult, setVercelResult] = useState<{ ok: boolean; message: string } | null>(null);
-
-  const [netlifyBusy, setNetlifyBusy] = useState(false);
-  const [netlifyResult, setNetlifyResult] = useState<{ ok: boolean; message: string } | null>(null);
-
   const downloadArchive = () => {
     // No secrets required — a real, runnable .zip of the generated project
     // (npm install && npm run dev works locally), for when the user doesn't
-    // want to hand over a GitHub/Vercel/Netlify connection.
+    // want to hand over a GitHub connection.
     downloadZip(files, projectName || "cruz-starter");
   };
 
@@ -53,47 +47,20 @@ export function ResultPanel({
       const res = await pushToGithubRepo({
         data: { token: github.token, repoName: projectName, files, private: githubPrivate },
       });
-      setGithubResult(
-        res.ok ? { ok: true, message: res.repoUrl } : { ok: false, message: res.message },
-      );
+      if (res.ok) {
+        setGithubResult({ ok: true, message: res.repoUrl });
+        addDeliveredRepo({
+          repoName: projectName,
+          repoUrl: res.repoUrl,
+          deliveredAt: Date.now(),
+        });
+      } else {
+        setGithubResult({ ok: false, message: res.message });
+      }
     } catch (e) {
       setGithubResult({ ok: false, message: e instanceof Error ? e.message : "Request failed" });
     } finally {
       setGithubBusy(false);
-    }
-  };
-
-  const deploy = async () => {
-    setVercelBusy(true);
-    setVercelResult(null);
-    try {
-      const res = await deployToVercel({ data: { token: vercelToken, projectName, files } });
-      setVercelResult(
-        res.ok ? { ok: true, message: res.url ?? "Deployed" } : { ok: false, message: res.message },
-      );
-    } catch (e) {
-      setVercelResult({ ok: false, message: e instanceof Error ? e.message : "Request failed" });
-    } finally {
-      setVercelBusy(false);
-    }
-  };
-
-  const deployNetlify = async () => {
-    setNetlifyBusy(true);
-    setNetlifyResult(null);
-    try {
-      const res = await deployToNetlify({
-        data: { token: netlifyToken, siteName: projectName, files },
-      });
-      setNetlifyResult(
-        res.ok
-          ? { ok: true, message: res.url ? `${res.url} (${res.state})` : `Deployed (${res.state})` }
-          : { ok: false, message: res.message },
-      );
-    } catch (e) {
-      setNetlifyResult({ ok: false, message: e instanceof Error ? e.message : "Request failed" });
-    } finally {
-      setNetlifyBusy(false);
     }
   };
 
@@ -132,7 +99,7 @@ export function ResultPanel({
         </div>
         {!github ? (
           <p className="mt-3 font-mono text-[11px] text-muted-foreground">
-            Not connected —{" "}
+            Not connected,{" "}
             <Link to="/settings" className="text-primary hover:underline">
               connect GitHub in Settings
             </Link>{" "}
@@ -141,7 +108,7 @@ export function ResultPanel({
         ) : (
           <div className="mt-3 space-y-2">
             <p className="font-mono text-[11px] text-muted-foreground">
-              Connected as <span className="text-foreground">{github.login}</span> — repo will be
+              Connected as <span className="text-foreground">{github.login}</span>, repo will be
               named <span className="text-foreground">{projectName || "(set a project name)"}</span>
               .
             </p>
@@ -157,62 +124,6 @@ export function ResultPanel({
                 className={`font-mono text-xs ${githubResult.ok ? "text-success" : "text-destructive"}`}
               >
                 {githubResult.message}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      <div className="rounded-sm border border-border bg-surface p-4">
-        <div className="flex items-center gap-2 font-mono text-xs font-bold text-foreground">
-          <Rocket className="h-4 w-4" /> Deploy to Vercel
-        </div>
-        {!vercelToken ? (
-          <p className="mt-3 font-mono text-[11px] text-muted-foreground">
-            No token saved —{" "}
-            <Link to="/settings" className="text-primary hover:underline">
-              add a Vercel token in Settings
-            </Link>{" "}
-            first.
-          </p>
-        ) : (
-          <div className="mt-3 space-y-2">
-            <Button onClick={deploy} disabled={vercelBusy || !projectName}>
-              {vercelBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Deploy"}
-            </Button>
-            {vercelResult && (
-              <div
-                className={`font-mono text-xs ${vercelResult.ok ? "text-success" : "text-destructive"}`}
-              >
-                {vercelResult.message}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      <div className="rounded-sm border border-border bg-surface p-4">
-        <div className="flex items-center gap-2 font-mono text-xs font-bold text-foreground">
-          <Globe className="h-4 w-4" /> Deploy to Netlify
-        </div>
-        {!netlifyToken ? (
-          <p className="mt-3 font-mono text-[11px] text-muted-foreground">
-            No token saved —{" "}
-            <Link to="/settings" className="text-primary hover:underline">
-              add a Netlify token in Settings
-            </Link>{" "}
-            first.
-          </p>
-        ) : (
-          <div className="mt-3 space-y-2">
-            <Button onClick={deployNetlify} disabled={netlifyBusy || !projectName}>
-              {netlifyBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Deploy"}
-            </Button>
-            {netlifyResult && (
-              <div
-                className={`font-mono text-xs ${netlifyResult.ok ? "text-success" : "text-destructive"}`}
-              >
-                {netlifyResult.message}
               </div>
             )}
           </div>

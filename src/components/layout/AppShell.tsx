@@ -1,5 +1,6 @@
 import { ReactNode } from "react";
 import { PanelLeftOpen } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 import { Sidebar } from "./Sidebar";
 import { useUi } from "@/lib/ui-state";
 import { LogoMark } from "@/components/shared/Logo";
@@ -28,10 +29,12 @@ export function AppShell({ children }: { children: ReactNode }) {
           >
             <PanelLeftOpen className="h-5 w-5" />
           </button>
-          <LogoMark className="h-6 w-6" />
-          <span className="font-display text-sm font-bold tracking-tight text-foreground">
-            CR<span className="text-primary">UZ</span>
-          </span>
+          <Link to="/" className="flex items-center gap-2" aria-label="CRUZ home">
+            <LogoMark className="h-6 w-6" />
+            <span className="font-display text-sm font-bold tracking-tight text-foreground">
+              CR<span className="text-primary">UZ</span>
+            </span>
+          </Link>
         </header>
 
         {/* Desktop: floating expand button, shown only when the rail is collapsed */}

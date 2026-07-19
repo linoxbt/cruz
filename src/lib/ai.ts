@@ -8,8 +8,8 @@
 //                    covers OpenRouter).
 //
 // The two direct modes are bring-your-own-key: the user pastes a key in the
-// AI Builder's settings panel, stored in this browser only — same trust
-// model as the Scaffolder's GitHub/Vercel tokens.
+// AI Builder's settings panel, stored in this browser only, same trust
+// model as the Scaffolder's GitHub token.
 
 import {
   getAiSettings,

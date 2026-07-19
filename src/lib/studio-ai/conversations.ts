@@ -4,7 +4,25 @@ import type { ChatMessage } from "@/lib/ai";
 // Shared timeline/tool-step shapes — defined here (not in useAppAgent.ts) so
 // this module and useAppAgent.ts can import each other's types without a
 // circular dependency.
-export type ToolStepKind = "generate" | "protected-file-check" | "structural-check" | "inspect-url";
+//
+// The build-step kinds (spec/scaffold/implement/test/deploy/monitor, see
+// BuildStepKind below) are included here too: a build-step transition is
+// rendered as an inline ToolStep row in the conversation itself — the same
+// live-status log used for "Generating"/"Structural check" — rather than as
+// a separate checklist panel elsewhere in the UI. The underlying BuildStep
+// list (conv.steps) still exists for resumability/metrics; this is only
+// about how a step transition is *shown*.
+export type ToolStepKind =
+  | "generate"
+  | "protected-file-check"
+  | "structural-check"
+  | "inspect-url"
+  | "spec"
+  | "scaffold"
+  | "implement"
+  | "test"
+  | "deploy"
+  | "monitor";
 export type ToolStepStatus = "running" | "done" | "error";
 
 export interface ToolStep {

@@ -59,7 +59,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
-      { title: "CRUZ — One account, any chain" },
+      { title: "CRUZ: One account, any chain" },
       // PWA: installable as an app ("Add to Home Screen").
       { name: "theme-color", content: "#0b0f1a" },
       { name: "mobile-web-app-capable", content: "yes" },
@@ -70,25 +70,25 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       {
         name: "description",
         content:
-          "CRUZ — a chain-abstraction console for Universal Accounts on Arbitrum. Inspect, upgrade, compose, and scaffold.",
+          "CRUZ: a chain-abstraction console for Universal Accounts on Arbitrum. Inspect, upgrade, compose, and scaffold.",
       },
-      { property: "og:title", content: "CRUZ — One account, any chain" },
+      { property: "og:title", content: "CRUZ: One account, any chain" },
       {
         property: "og:description",
         content:
-          "CRUZ — a chain-abstraction console for Universal Accounts on Arbitrum. Inspect, upgrade, compose, and scaffold.",
+          "CRUZ: a chain-abstraction console for Universal Accounts on Arbitrum. Inspect, upgrade, compose, and scaffold.",
       },
       { property: "og:type", content: "website" },
       { property: "og:image", content: "/og-image.png" },
       { property: "og:image:width", content: "1200" },
       { property: "og:image:height", content: "630" },
-      { property: "og:image:alt", content: "CRUZ — One account, any chain." },
+      { property: "og:image:alt", content: "CRUZ: One account, any chain." },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "CRUZ — One account, any chain" },
+      { name: "twitter:title", content: "CRUZ: One account, any chain" },
       {
         name: "twitter:description",
         content:
-          "CRUZ — a chain-abstraction console for Universal Accounts on Arbitrum. Inspect, upgrade, compose, and scaffold.",
+          "CRUZ: a chain-abstraction console for Universal Accounts on Arbitrum. Inspect, upgrade, compose, and scaffold.",
       },
       { name: "twitter:image", content: "/og-image.png" },
     ],

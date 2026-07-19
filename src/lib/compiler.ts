@@ -82,7 +82,7 @@ export function compile({
       // gets a fresh one instead of hanging on the same stuck instance.
       w.terminate();
       worker = null;
-      reject(new Error("Compiler timed out — the solc worker didn't respond in time. Try again."));
+      reject(new Error("Compiler timed out, the solc worker didn't respond in time. Try again."));
     }, COMPILE_TIMEOUT_MS);
 
     const handler = (

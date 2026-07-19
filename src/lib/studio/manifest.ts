@@ -1,6 +1,8 @@
 import {
   Bot,
+  BookOpen,
   Code2,
+  Compass,
   FolderKanban,
   MessageSquareCode,
   PackagePlus,
@@ -10,11 +12,12 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-// CRUZ module manifest — the single source of truth for the app's modules.
+// CRUZ module manifest, the single source of truth for the app's modules.
 // CRUZ is single-mode (it's always "chain abstraction"), so there's no
 // mode/chain gating here: every module listed is always enabled. The manifest
-// exists so the landing page and sidebar render from one source, and so adding
-// a future module is "add an id + drop in a route file" with no refactor.
+// exists so the landing page, sidebar, and docs page render from one source,
+// and so adding a future module is "add an id + drop in a route file" with
+// no refactor.
 export type CruzModuleId =
   | "inspector"
   | "composer"
@@ -23,6 +26,8 @@ export type CruzModuleId =
   | "codeAi"
   | "builder"
   | "projects"
+  | "explorer"
+  | "docs"
   | "settings";
 
 export interface CruzModuleDef {
@@ -50,15 +55,14 @@ export const CRUZ_MODULES: CruzModuleDef[] = [
     id: "scaffolder",
     label: "Starter Scaffolder",
     path: "/scaffolder",
-    description:
-      "Generate a starter app (or deliver one built in the AI Builder) via GitHub, Vercel, or Netlify.",
+    description: "Generate a starter app (or deliver one built in the AI Builder) via GitHub.",
   },
   {
     id: "editor",
     label: "Contract Editor",
     path: "/editor",
     description:
-      "Edit, compile, inspect, and deploy a Solidity contract — with an AI assistant on hand.",
+      "Edit, compile, inspect, and deploy a Solidity contract, with an AI assistant on hand.",
   },
   {
     id: "codeAi",
@@ -71,24 +75,37 @@ export const CRUZ_MODULES: CruzModuleDef[] = [
     label: "AI Builder",
     path: "/builder",
     description:
-      "Describe an app and an AI agent builds it — live file tree, diff review, and preview.",
+      "Describe an app and an AI agent builds it, live file tree, diff review, and preview.",
   },
   {
     id: "projects",
     label: "My Projects",
     path: "/projects",
-    description: "Every app you've built in the AI Builder, in one place.",
+    description:
+      "Every app, contract, and repo you've built or shipped through CRUZ, in one place.",
+  },
+  {
+    id: "explorer",
+    label: "Explorer",
+    path: "/explorer",
+    description: "Browse Arbitrum One blocks, transactions, addresses, and tokens.",
+  },
+  {
+    id: "docs",
+    label: "Docs",
+    path: "/docs",
+    description: "How CRUZ works, module by module, plus security notes and FAQ.",
   },
   {
     id: "settings",
     label: "Settings",
     path: "/settings",
-    description: "Connect GitHub, Vercel, and Netlify once for every deploy.",
+    description: "Connect GitHub once for every deploy.",
   },
 ];
 
-// One icon per module id, shared by the sidebar and the dashboard's quick
-// actions so the two can't silently drift if a module id ever changes.
+// One icon per module id, shared by the sidebar and the docs page so they
+// can't silently drift if a module id ever changes.
 export const CRUZ_MODULE_ICONS: Record<CruzModuleId, LucideIcon> = {
   inspector: ScanSearch,
   composer: Waypoints,
@@ -97,5 +114,7 @@ export const CRUZ_MODULE_ICONS: Record<CruzModuleId, LucideIcon> = {
   codeAi: MessageSquareCode,
   builder: Bot,
   projects: FolderKanban,
+  explorer: Compass,
+  docs: BookOpen,
   settings: Settings,
 };

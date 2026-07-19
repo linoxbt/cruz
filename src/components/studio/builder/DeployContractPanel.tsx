@@ -29,6 +29,7 @@ import { compile, DEFAULT_SOLC_VERSION, type CompileOutput } from "@/lib/compile
 import { parseArgs } from "@/lib/abiArgParser";
 import { arbitrumOne, chainConfig } from "@/lib/chains";
 import { truncateAddress } from "@/lib/wallet";
+import { useMyActivity } from "@/lib/studio/myActivity";
 
 interface Props {
   files: Record<string, string>;
@@ -130,6 +131,25 @@ export function DeployContractPanel({ files }: Props) {
 
   const activeAddress = signerMode === "magic" ? address : genAccount?.address;
   const signerReady = signerMode === "magic" ? isConnected : !!genAccount;
+
+  const addDeployedContract = useMyActivity((s) => s.addDeployedContract);
+  const deployedContractAddress = (signerMode === "magic" ? receipt : manualReceipt)
+    ?.contractAddress;
+  const deployedTxHash = signerMode === "magic" ? txHash : (manualTxHash ?? undefined);
+  useEffect(() => {
+    if (!deployedContractAddress || !deployedTxHash) return;
+    addDeployedContract({
+      name: stage.name === "ready" ? stage.contractName : "Contract",
+      address: deployedContractAddress,
+      txHash: deployedTxHash,
+      chainId: arbitrumOne.id,
+      deployedAt: Date.now(),
+    });
+    // Fires once per successful deploy — a fresh contract address/tx hash
+    // means a genuinely new deployment, so re-recording on unrelated
+    // re-renders isn't a concern.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deployedContractAddress]);
 
   if (solFiles.length === 0) return null;
 
@@ -235,7 +255,7 @@ export function DeployContractPanel({ files }: Props) {
             <Wallet className="h-3.5 w-3.5 shrink-0" />
             <span>
               Connected wallet
-              <span className="block text-[10px] text-meta">Magic — CRUZ&apos;s account</span>
+              <span className="block text-[10px] text-meta">Magic, CRUZ&apos;s account</span>
             </span>
           </button>
           <button
@@ -256,9 +276,9 @@ export function DeployContractPanel({ files }: Props) {
 
         {signerMode === "magic" && !isConnected && (
           <p className="rounded-sm border border-warning/40 bg-warning/5 p-3 font-mono text-[11px] text-muted-foreground">
-            Connect your CRUZ wallet (Magic) to deploy — same requirement as everywhere else in
-            CRUZ. Deployment is always signed by your connected wallet; CRUZ never generates or
-            holds a separate key for this.
+            Connect your CRUZ wallet (Magic) to deploy, same requirement as everywhere else in CRUZ.
+            Deployment is always signed by your connected wallet; CRUZ never generates or holds a
+            separate key for this.
           </p>
         )}
 
@@ -269,11 +289,10 @@ export function DeployContractPanel({ files }: Props) {
               account
             </div>
             <p>
-              Generates a plain local key pair, held only in this browser tab&apos;s memory — never
+              Generates a plain local key pair, held only in this browser tab&apos;s memory, never
               sent anywhere, never persisted. It starts with 0 ETH; you fund it yourself (no faucet,
               Arbitrum One is mainnet). If you close or reload this tab before exporting the private
-              key, it — and anything sent to it — is unrecoverable. CRUZ cannot recover it either
-              way.
+              key, it, and anything sent to it, is unrecoverable. CRUZ cannot recover it either way.
             </p>
             <label className="flex cursor-pointer items-center gap-2 pt-1 text-foreground">
               <input
@@ -306,7 +325,7 @@ export function DeployContractPanel({ files }: Props) {
             <div className="break-all text-foreground">{genAccount.address}</div>
             <div className="flex items-center justify-between pt-1">
               <span className="text-muted-foreground">
-                Balance: {genBalance !== null ? `${formatEther(genBalance)} ETH` : "—"}
+                Balance: {genBalance !== null ? `${formatEther(genBalance)} ETH` : "-"}
               </span>
               <button
                 onClick={() => void refreshGenBalance()}
@@ -319,7 +338,7 @@ export function DeployContractPanel({ files }: Props) {
             </div>
             {genBalance === 0n && (
               <p className="text-warning">
-                0 balance — send ETH to this address on Arbitrum One before deploying.
+                0 balance, send ETH to this address on Arbitrum One before deploying.
               </p>
             )}
             <div className="border-t border-border pt-2">
@@ -410,7 +429,7 @@ export function DeployContractPanel({ files }: Props) {
             <span className="text-foreground">
               {activeAddress && truncateAddress(activeAddress)}
             </span>
-            . There is no testnet or faucet — review before confirming.
+            . There is no testnet or faucet, review before confirming.
           </div>
 
           {activeSendError && (

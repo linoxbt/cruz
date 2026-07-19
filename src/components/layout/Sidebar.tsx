@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Home, Sun, Moon, X } from "lucide-react";
+import { Home, Sun, Moon, X, PanelLeftClose } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { WalletPanel } from "@/components/web3/WalletPanel";
 import { LogoMark } from "@/components/shared/Logo";
@@ -34,9 +34,9 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
     <>
       <div className="flex items-center justify-between border-b border-border px-3 py-4">
         <Link
-          to="/app"
+          to="/"
           className="flex items-center gap-2"
-          aria-label="CRUZ dashboard"
+          aria-label="CRUZ home"
           onClick={onNavigate}
         >
           <LogoMark className="h-7 w-7" />
@@ -50,7 +50,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
           aria-label={onNavigate ? "Close menu" : "Collapse sidebar"}
           title={onNavigate ? "Close menu" : "Collapse sidebar"}
         >
-          {onNavigate ? <X className="h-4 w-4" /> : null}
+          {onNavigate ? <X className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
         </button>
       </div>
 

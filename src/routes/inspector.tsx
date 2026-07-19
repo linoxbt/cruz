@@ -9,7 +9,7 @@ import { DelegationProofPanel } from "@/components/studio/inspector/DelegationPr
 import { UpgradeFlow } from "@/components/studio/inspector/UpgradeFlow";
 
 export const Route = createFileRoute("/inspector")({
-  head: () => ({ meta: [{ title: "Account Inspector — CRUZ" }] }),
+  head: () => ({ meta: [{ title: "Account Inspector | CRUZ" }] }),
   component: InspectorPage,
 });
 

@@ -5,6 +5,9 @@ import {
   CheckCircle2,
   ChevronDown,
   Download,
+  ExternalLink,
+  FileCode2,
+  Github,
   History,
   Loader2,
   MessageSquare,
@@ -15,13 +18,15 @@ import {
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Button } from "@/components/ui/button";
 import { useConversations, type Conversation } from "@/lib/studio-ai/conversations";
+import { useMyActivity } from "@/lib/studio/myActivity";
+import { truncateAddress } from "@/lib/wallet";
 import { downloadZip } from "@/lib/zip";
 import { bundleForPreview } from "@/lib/studio-ai/livePreviewBundler";
 import { checkDependencyVersions } from "@/lib/api/registry.functions";
 import { formatElapsed } from "@/components/studio/builder/BuildSummaryCard";
 
 export const Route = createFileRoute("/projects")({
-  head: () => ({ meta: [{ title: "My Projects — CRUZ" }] }),
+  head: () => ({ meta: [{ title: "My Projects | CRUZ" }] }),
   component: ProjectsPage,
 });
 
@@ -72,6 +77,9 @@ function ProjectsPage() {
   const remove = useConversations((s) => s.remove);
   const update = useConversations((s) => s.update);
 
+  const deployedContracts = useMyActivity((s) => s.deployedContracts);
+  const deliveredRepos = useMyActivity((s) => s.deliveredRepos);
+
   const [checkingId, setCheckingId] = useState<string | null>(null);
   const [historyOpenId, setHistoryOpenId] = useState<string | null>(null);
 
@@ -103,20 +111,22 @@ function ProjectsPage() {
       <PageHeader
         breadcrumb={["CRUZ", "My Projects"]}
         title="My Projects"
-        subtitle="Every app you've started or built in the AI Builder."
+        subtitle="Every app, contract, and repo you've built or shipped through CRUZ."
       />
       <div className="space-y-8 p-6">
-        {conversations.length === 0 && (
-          <div className="rounded-sm border border-dashed border-border bg-surface p-10 text-center">
-            <Bot className="mx-auto h-6 w-6 text-meta" />
-            <p className="mt-2 font-mono text-xs text-muted-foreground">
-              You haven&apos;t started anything in the AI Builder yet.
-            </p>
-            <Button className="mt-3" onClick={() => navigate({ to: "/builder" })}>
-              Go to AI Builder
-            </Button>
-          </div>
-        )}
+        {conversations.length === 0 &&
+          deployedContracts.length === 0 &&
+          deliveredRepos.length === 0 && (
+            <div className="rounded-sm border border-dashed border-border bg-surface p-10 text-center">
+              <Bot className="mx-auto h-6 w-6 text-meta" />
+              <p className="mt-2 font-mono text-xs text-muted-foreground">
+                Nothing here yet. Build an app, deploy a contract, or push a repo to see it show up.
+              </p>
+              <Button className="mt-3" onClick={() => navigate({ to: "/builder" })}>
+                Go to AI Builder
+              </Button>
+            </div>
+          )}
 
         {avgBuildMs !== null && (
           <div className="grid gap-3 sm:grid-cols-3">
@@ -249,7 +259,7 @@ function ProjectsPage() {
                             key={entry.id}
                             className="font-mono text-[10px] text-muted-foreground"
                           >
-                            <span className="text-meta">{relativeTime(entry.timestamp)}</span> —{" "}
+                            <span className="text-meta">{relativeTime(entry.timestamp)}:</span>{" "}
                             {entry.summary}
                           </li>
                         ))}
@@ -297,6 +307,60 @@ function ProjectsPage() {
                       </Button>
                     </div>
                   </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {deployedContracts.length > 0 && (
+          <section>
+            <h2 className="mb-3 font-mono text-[11px] uppercase tracking-widest text-meta">
+              Deployed Contracts ({deployedContracts.length})
+            </h2>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {deployedContracts.map((d) => (
+                <div key={d.id} className="rounded-sm border border-border bg-surface p-4">
+                  <div className="flex items-center gap-2 font-display text-sm font-bold text-foreground">
+                    <FileCode2 className="h-4 w-4 text-primary" /> {d.name}
+                  </div>
+                  <div className="mt-1 font-mono text-[10px] text-meta">
+                    Deployed {relativeTime(d.deployedAt)}
+                  </div>
+                  <a
+                    href={`/explorer/address/${d.address}`}
+                    className="mt-3 flex items-center gap-1 font-mono text-xs text-primary hover:underline"
+                  >
+                    {truncateAddress(d.address)} <ExternalLink className="h-3 w-3" />
+                  </a>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {deliveredRepos.length > 0 && (
+          <section>
+            <h2 className="mb-3 font-mono text-[11px] uppercase tracking-widest text-meta">
+              Delivered Repos ({deliveredRepos.length})
+            </h2>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {deliveredRepos.map((r) => (
+                <div key={r.id} className="rounded-sm border border-border bg-surface p-4">
+                  <div className="flex items-center gap-2 font-display text-sm font-bold text-foreground">
+                    <Github className="h-4 w-4 text-primary" /> {r.repoName}
+                  </div>
+                  <div className="mt-1 font-mono text-[10px] text-meta">
+                    Pushed {relativeTime(r.deliveredAt)}
+                  </div>
+                  <a
+                    href={r.repoUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-3 flex items-center gap-1 font-mono text-xs text-primary hover:underline"
+                  >
+                    View on GitHub <ExternalLink className="h-3 w-3" />
+                  </a>
                 </div>
               ))}
             </div>

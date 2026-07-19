@@ -1,4 +1,4 @@
-import { Loader2, Wallet, Zap } from "lucide-react";
+import { CheckCircle2, Loader2, Wallet, Zap } from "lucide-react";
 import { useAccount } from "wagmi";
 import { useEip7702Upgrade } from "@/hooks/useEip7702Upgrade";
 import { Button } from "@/components/ui/button";
@@ -42,7 +42,13 @@ export function UpgradeFlow() {
 
       {status === "done" && txId && (
         <div className="mt-3 rounded-md border border-success/40 bg-success/5 p-3 text-xs text-success">
-          Upgrade submitted — transaction {txId}
+          Upgrade submitted, transaction {txId}
+        </div>
+      )}
+      {status === "already-upgraded" && (
+        <div className="mt-3 flex items-center gap-2 rounded-md border border-success/40 bg-success/5 p-3 text-xs text-success">
+          <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+          This address already has a live EIP-7702 delegation on Arbitrum One, nothing to do.
         </div>
       )}
       {status === "error" && error && (
@@ -61,7 +67,7 @@ export function UpgradeFlow() {
             "Run EIP-7702 Upgrade"
           )}
         </Button>
-        {(status === "done" || status === "error") && (
+        {(status === "done" || status === "error" || status === "already-upgraded") && (
           <Button variant="outline" onClick={reset}>
             Reset
           </Button>

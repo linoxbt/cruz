@@ -43,7 +43,7 @@ export function ConversationList({ activeId, onSelect, onCreate }: Props) {
       <div className="max-h-56 overflow-y-auto p-1">
         {sorted.length === 0 && (
           <p className="p-2 font-mono text-[11px] text-meta">
-            No conversations yet — start one below.
+            No conversations yet, start one below.
           </p>
         )}
         {sorted.map((c) => (

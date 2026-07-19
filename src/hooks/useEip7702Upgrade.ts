@@ -1,10 +1,12 @@
 import { useState } from "react";
+import { useChainId } from "wagmi";
 import { ZeroAddress } from "@particle-network/universal-account-sdk";
 import { getUniversalAccount } from "@/lib/studio/particle";
 import { signAndSendWithMagic, useMagic, useMagicAddress } from "@/lib/studio/magicSigner";
 import { arbitrumOne } from "@/lib/chains";
 
-export type UpgradeStatus = "idle" | "preparing" | "signing" | "done" | "error";
+export type UpgradeStatus =
+  "idle" | "preparing" | "signing" | "done" | "already-upgraded" | "error";
 
 export interface UpgradeResult {
   status: UpgradeStatus;
@@ -35,6 +37,7 @@ export function useEip7702Upgrade(): UpgradeResult {
 
   const magic = useMagic();
   const address = useMagicAddress();
+  const chainId = useChainId();
   const canUpgrade = !!(magic && address);
 
   const upgrade = async () => {
@@ -43,6 +46,12 @@ export function useEip7702Upgrade(): UpgradeResult {
 
     if (!magic || !address) {
       setError("Connect your CRUZ wallet (Magic) to run the EIP-7702 upgrade.");
+      setStatus("error");
+      return;
+    }
+
+    if (chainId !== arbitrumOne.id) {
+      setError("Switch your wallet to Arbitrum One before running the upgrade.");
       setStatus("error");
       return;
     }
@@ -58,8 +67,10 @@ export function useEip7702Upgrade(): UpgradeResult {
       });
 
       if (!tx.userOps.some((op) => op.eip7702Auth)) {
-        setError("This address is already upgraded on Arbitrum One — nothing to authorize.");
-        setStatus("error");
+        // Not a failure — the account already has a live EIP-7702 delegation
+        // on this chain, so there's nothing left to authorize. Kept as its
+        // own status (not "error") so the UI doesn't show this as a crash.
+        setStatus("already-upgraded");
         return;
       }
 
@@ -68,7 +79,12 @@ export function useEip7702Upgrade(): UpgradeResult {
       setTxId((result?.transactionId as string | undefined) ?? tx.transactionId);
       setStatus("done");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Upgrade failed");
+      // Log the raw error so a Magic/Particle-SDK-specific shape (error
+      // codes, nested `data`/`details` fields) is inspectable in the
+      // console — the string below is what's shown in the UI, but the
+      // console has the full object for diagnosing exactly what failed.
+      console.error("[CRUZ] EIP-7702 upgrade failed:", e);
+      setError(describeUpgradeError(e));
       setStatus("error");
     }
   };
@@ -80,4 +96,27 @@ export function useEip7702Upgrade(): UpgradeResult {
   };
 
   return { status, error, txId, canUpgrade, upgrade, reset };
+}
+
+// Web3 SDKs (Magic, Particle, viem/wagmi) rarely throw a plain `Error` —
+// they usually attach the real cause on `.message`, `.reason`, `.details`,
+// or a nested `.data.message`/`.cause.message`. Falling back straight to
+// "Upgrade failed" (as this used to) throws that detail away. Walk the
+// common shapes before giving up.
+function describeUpgradeError(e: unknown): string {
+  if (e && typeof e === "object") {
+    const obj = e as Record<string, unknown>;
+    const candidates = [
+      obj.message,
+      obj.reason,
+      obj.details,
+      (obj.data as Record<string, unknown> | undefined)?.message,
+      (obj.cause as Record<string, unknown> | undefined)?.message,
+    ];
+    for (const c of candidates) {
+      if (typeof c === "string" && c.trim()) return c;
+    }
+  }
+  if (e instanceof Error) return e.message;
+  return "Upgrade failed, see the browser console for details.";
 }

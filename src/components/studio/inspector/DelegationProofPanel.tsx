@@ -33,14 +33,14 @@ export function DelegationProofPanel({ address }: { address: string | undefined 
           <ShieldX className="h-4 w-4 text-meta" />
         )}
         <span className="font-mono text-sm font-bold text-foreground">
-          {data.isUpgraded ? "Upgraded — EIP-7702 Universal Account" : "Plain EOA — not upgraded"}
+          {data.isUpgraded ? "Upgraded: EIP-7702 Universal Account" : "Plain EOA, not upgraded"}
         </span>
       </div>
 
       <p className="mt-2 font-mono text-xs leading-relaxed text-muted-foreground">
         {data.isUpgraded
-          ? "This address's on-chain code carries the EIP-7702 delegation designator (0xef0100 + delegate address) — proof it has been upgraded to a chain-abstracted Universal Account."
-          : "eth_getCode returns empty bytecode — this is an ordinary externally-owned account with no delegation set."}
+          ? "This address's on-chain code carries the EIP-7702 delegation designator (0xef0100 + delegate address), proof it has been upgraded to a chain-abstracted Universal Account."
+          : "eth_getCode returns empty bytecode, this is an ordinary externally-owned account with no delegation set."}
       </p>
 
       {data.isUpgraded && data.delegateAddress && (

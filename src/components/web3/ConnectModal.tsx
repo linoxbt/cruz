@@ -45,7 +45,7 @@ export function ConnectModal({ onClose }: { onClose: () => void }) {
         <div className="space-y-4 px-6 pb-6">
           {!configured ? (
             <div className="rounded-lg border border-warning/40 bg-warning/5 p-3 text-[11px] text-muted-foreground">
-              Magic isn&apos;t configured — set{" "}
+              Magic isn&apos;t configured, set{" "}
               <code className="text-foreground">VITE_MAGIC_PUBLISHABLE_KEY</code> in{" "}
               <code className="text-foreground">.env.local</code> (see REQUIREMENTS.md) to enable
               login.
@@ -73,7 +73,7 @@ export function ConnectModal({ onClose }: { onClose: () => void }) {
           )}
 
           <p className="text-center text-[10px] text-meta">
-            By continuing you agree to CRUZ&apos;s terms. A wallet is created for you — no seed
+            By continuing you agree to CRUZ&apos;s terms. A wallet is created for you, no seed
             phrases to manage.
           </p>
         </div>

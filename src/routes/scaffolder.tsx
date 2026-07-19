@@ -16,7 +16,7 @@ import {
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/scaffolder")({
-  head: () => ({ meta: [{ title: "Starter Scaffolder — CRUZ" }] }),
+  head: () => ({ meta: [{ title: "Starter Scaffolder | CRUZ" }] }),
   component: ScaffolderPage,
 });
 
@@ -31,8 +31,8 @@ function ScaffolderPage() {
     embeddedWallet: false,
     gasSponsorship: false,
   });
-  // Pure/deterministic — no server round-trip needed for generation itself,
-  // only for the GitHub/Vercel delivery steps (which need a token server-side).
+  // Pure/deterministic, no server round-trip needed for generation itself,
+  // only for the GitHub delivery step (which needs a token server-side).
   const templateFiles = useMemo(() => buildUnifiedWalletTemplate(config), [config]);
 
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
@@ -44,7 +44,7 @@ function ScaffolderPage() {
       <PageHeader
         breadcrumb={["CRUZ", "Starter Scaffolder"]}
         title="Starter App Scaffolder"
-        subtitle="Generate a chain-abstracted starter app — from a fixed template or something you already built in the AI Builder — and deliver it via GitHub, Vercel, or Netlify."
+        subtitle="Generate a chain-abstracted starter app, from a fixed template or something you already built in the AI Builder, and deliver it via GitHub or a downloadable ZIP."
       />
       <div className="space-y-6 p-6">
         <div className="grid gap-2 sm:grid-cols-2">

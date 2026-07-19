@@ -4,7 +4,6 @@ import {
   AlertTriangle,
   CheckCircle2,
   Download,
-  ListChecks,
   MessageSquare,
   PanelRightClose,
   PanelRightOpen,
@@ -28,7 +27,6 @@ import { DeployContractPanel } from "@/components/studio/builder/DeployContractP
 import { FileDiffPreview } from "@/components/studio/builder/FileDiffPreview";
 import { LivePreview } from "@/components/studio/builder/LivePreview";
 import { ModePicker } from "@/components/studio/builder/ModePicker";
-import { TaskList } from "@/components/studio/builder/TaskList";
 import { ResultPanel } from "@/components/studio/scaffolder/ResultPanel";
 import { useAppAgent } from "@/hooks/useAppAgent";
 import { useAiSettings, useAiServerStatus } from "@/lib/ai-settings";
@@ -40,7 +38,7 @@ import {
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/builder")({
-  head: () => ({ meta: [{ title: "AI Builder — CRUZ" }] }),
+  head: () => ({ meta: [{ title: "AI Builder | CRUZ" }] }),
   component: BuilderPage,
 });
 
@@ -80,7 +78,6 @@ function BuilderPage() {
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [conversationsOpen, setConversationsOpen] = useState(false);
-  const [tasksOpen, setTasksOpen] = useState(true);
   const [rightTab, setRightTab] = useState<"files" | "preview" | "history">("files");
   const [activePath, setActivePath] = useState<string | null>(null);
   const [securityAcknowledged, setSecurityAcknowledged] = useState(false);
@@ -137,7 +134,7 @@ function BuilderPage() {
         <PageHeader
           breadcrumb={["CRUZ", "AI Builder"]}
           title="AI Builder"
-          subtitle="Describe an app and an AI agent builds it — live file tree, diff review, and a real sandboxed preview, before anything ships."
+          subtitle="Describe an app and an AI agent builds it: live file tree, diff review, and a real sandboxed preview, before anything ships."
         />
         <div className="space-y-4 p-6">
           {conversations.length > 0 && (
@@ -162,7 +159,7 @@ function BuilderPage() {
       <PageHeader
         breadcrumb={["CRUZ", "AI Builder"]}
         title="AI Builder"
-        subtitle="Describe an app and an AI agent builds it — live file tree, diff review, and a real sandboxed preview, before anything ships."
+        subtitle="Describe an app and an AI agent builds it: live file tree, diff review, and a real sandboxed preview, before anything ships."
       />
       <div className="space-y-4 p-6">
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end sm:gap-3">
@@ -190,15 +187,6 @@ function BuilderPage() {
             >
               {conversation.mode}
             </span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setTasksOpen((o) => !o)}
-              aria-label="Task list"
-            >
-              <ListChecks className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Tasks</span>
-            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -253,19 +241,10 @@ function BuilderPage() {
 
         {settingsOpen && <AiSettingsPanel />}
 
-        {tasksOpen && (
-          <div className="rounded-sm border border-border bg-surface">
-            <div className="border-b border-border px-3 py-2 font-mono text-xs uppercase tracking-wider text-meta">
-              Build tasks
-            </div>
-            <TaskList steps={agent.steps} />
-          </div>
-        )}
-
         {awaitingPlanApproval && (
           <div className="space-y-2 rounded-sm border border-primary/40 bg-primary/5 p-4">
             <div className="flex items-center gap-1.5 font-mono text-xs font-bold text-primary">
-              <CheckCircle2 className="h-3.5 w-3.5" /> Manual mode — review the plan above
+              <CheckCircle2 className="h-3.5 w-3.5" /> Manual mode: review the plan above
             </div>
             <p className="font-mono text-[11px] text-muted-foreground">
               {agent.awaitingApproval?.detail} No files have been written or checked yet.
@@ -382,7 +361,7 @@ function BuilderPage() {
                     <div className="h-full overflow-y-auto p-3">
                       {agent.changelog.length === 0 ? (
                         <p className="font-mono text-xs text-meta">
-                          Nothing applied yet — history fills in after your first Apply.
+                          Nothing applied yet. History fills in after your first Apply.
                         </p>
                       ) : (
                         <ul className="space-y-2">
@@ -451,7 +430,7 @@ function BuilderPage() {
                 <ul className="space-y-1 font-mono text-[11px] text-muted-foreground">
                   {securityFindings.map((f, i) => (
                     <li key={i}>
-                      <span className="text-foreground">{f.path}</span> — {f.message}
+                      <span className="text-foreground">{f.path}</span>: {f.message}
                     </li>
                   ))}
                 </ul>

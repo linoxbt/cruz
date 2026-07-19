@@ -53,7 +53,7 @@ export function runStructuralChecks(files: Record<string, string>): StructuralFi
             path: "package.json",
             severity: "warning",
             securityRelevant: true,
-            message: `Has a "${script}" script — review it before running npm install anywhere; CRUZ never runs it, but you or Vercel's build might.`,
+            message: `Has a "${script}" script. Review it before running npm install anywhere, CRUZ never runs it, but your build host might.`,
           });
         }
       }
@@ -64,7 +64,7 @@ export function runStructuralChecks(files: Record<string, string>): StructuralFi
             path: "package.json",
             severity: "warning",
             securityRelevant: true,
-            message: `New dependency "${name}" — not part of CRUZ's known starter set. Review it before trusting it.`,
+            message: `New dependency "${name}", not part of CRUZ's known starter set. Review it before trusting it.`,
           });
         }
       }
@@ -131,7 +131,7 @@ function checkRiskyPatterns(path: string, content: string): StructuralFinding[] 
       path,
       severity: "warning",
       securityRelevant: true,
-      message: "Uses eval() — arbitrary code execution risk if the input is ever user-controlled.",
+      message: "Uses eval(), arbitrary code execution risk if the input is ever user-controlled.",
     });
   }
 
@@ -141,7 +141,7 @@ function checkRiskyPatterns(path: string, content: string): StructuralFinding[] 
       severity: "warning",
       securityRelevant: true,
       message:
-        "Uses dangerouslySetInnerHTML — XSS risk unless the HTML is sanitized or fully trusted.",
+        "Uses dangerouslySetInnerHTML, XSS risk unless the HTML is sanitized or fully trusted.",
     });
   }
 
@@ -151,7 +151,7 @@ function checkRiskyPatterns(path: string, content: string): StructuralFinding[] 
         path,
         severity: "warning",
         securityRelevant: true,
-        message: "Looks like a hardcoded secret/API key — use an environment variable instead.",
+        message: "Looks like a hardcoded secret/API key, use an environment variable instead.",
       });
       break; // one flag per file is enough signal, avoid repetitive noise
     }
@@ -161,7 +161,7 @@ function checkRiskyPatterns(path: string, content: string): StructuralFinding[] 
     findings.push({
       path,
       severity: "warning",
-      message: "Uses a plain http:// URL — prefer https:// for network requests.",
+      message: "Uses a plain http:// URL, prefer https:// for network requests.",
     });
   }
 
@@ -170,7 +170,7 @@ function checkRiskyPatterns(path: string, content: string): StructuralFinding[] 
     findings.push({
       path,
       severity: "warning",
-      message: `Uses the deprecated React API "${deprecated}" — prefer its modern equivalent.`,
+      message: `Uses the deprecated React API "${deprecated}", prefer its modern equivalent.`,
     });
   }
 
@@ -256,7 +256,7 @@ function checkBalance(content: string): string | null {
     if (c === ")" || c === "]" || c === "}") {
       const top = stack.pop();
       if (!top || top.ch !== pairs[c]) {
-        return `Unbalanced "${c}" — mismatched or unexpected closing bracket.`;
+        return `Unbalanced "${c}", mismatched or unexpected closing bracket.`;
       }
       if (c === "}" && top.templateReturn) state = "template";
       continue;
@@ -264,9 +264,9 @@ function checkBalance(content: string): string | null {
   }
 
   if (state === "sq" || state === "dq")
-    return "Unterminated string literal — file likely got cut off.";
-  if (state === "template") return "Unterminated template literal — file likely got cut off.";
-  if (state === "block-comment") return "Unterminated block comment — file likely got cut off.";
-  if (stack.length > 0) return `Unbalanced brackets — ${stack.length} unclosed.`;
+    return "Unterminated string literal, file likely got cut off.";
+  if (state === "template") return "Unterminated template literal, file likely got cut off.";
+  if (state === "block-comment") return "Unterminated block comment, file likely got cut off.";
+  if (stack.length > 0) return `Unbalanced brackets, ${stack.length} unclosed.`;
   return null;
 }

@@ -18,6 +18,7 @@ import {
   defaultMetrics,
   type TimelineItem,
   type ToolStep,
+  type ToolStepKind,
   type BuildStep,
   type BuildStepKind,
   type ChangelogEntry,
@@ -137,9 +138,31 @@ export const useAgentRuntime = create<AgentRuntimeStore>((set, get) => {
     useConversations.getState().update(id, { timeline: next });
   }
 
-  // Task-list step tracking (Conversation.steps) — separate from the
-  // tool-step timeline rows above (those are a play-by-play log; steps are
-  // the persistent, resumable task list itself).
+  // Same idea as updateLastTool, but scoped to a specific kind — used by
+  // finishStep/failStep below so a build-step's completion updates ITS OWN
+  // row even if other tool rows (generate/structural-check) were pushed
+  // after it began. Returns false if no matching row exists yet, so the
+  // caller can push one instead (defensive — shouldn't normally happen
+  // since beginStep always pushes first).
+  function updateLastToolOfKind(id: string, kind: ToolStepKind, patch: Partial<ToolStep>): boolean {
+    const next = [...currentTimeline(id)];
+    for (let i = next.length - 1; i >= 0; i--) {
+      const t = next[i].tool;
+      if (t && t.kind === kind) {
+        next[i] = { ...next[i], tool: { ...t, ...patch } };
+        useConversations.getState().update(id, { timeline: next });
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // Task-list step tracking (Conversation.steps) drives BuildSummaryCard's
+  // metrics and the Projects-page aggregate stats — that data model still
+  // exists. But how a step transition is *shown* is the same inline,
+  // play-by-play timeline log used for every other tool-step row (no
+  // separate checklist panel) — beginStep/finishStep/failStep below update
+  // both in one call.
   function patchStep(
     id: string,
     kind: BuildStepKind,
@@ -154,12 +177,22 @@ export const useAgentRuntime = create<AgentRuntimeStore>((set, get) => {
     });
     useConversations.getState().update(id, { steps });
   }
-  const beginStep = (id: string, kind: BuildStepKind, detail?: string) =>
+  const beginStep = (id: string, kind: BuildStepKind, detail?: string) => {
     patchStep(id, kind, { status: "in_progress", detail, startedAt: Date.now() });
-  const finishStep = (id: string, kind: BuildStepKind, detail?: string) =>
+    pushTimeline(id, { role: "tool", tool: { kind, status: "running", detail } });
+  };
+  const finishStep = (id: string, kind: BuildStepKind, detail?: string) => {
     patchStep(id, kind, { status: "done", detail, finishedAt: Date.now() });
-  const failStep = (id: string, kind: BuildStepKind, detail?: string) =>
+    if (!updateLastToolOfKind(id, kind, { status: "done", detail })) {
+      pushTimeline(id, { role: "tool", tool: { kind, status: "done", detail } });
+    }
+  };
+  const failStep = (id: string, kind: BuildStepKind, detail?: string) => {
     patchStep(id, kind, (s) => ({ status: "failed", detail, attempts: (s.attempts ?? 0) + 1 }));
+    if (!updateLastToolOfKind(id, kind, { status: "error", detail })) {
+      pushTimeline(id, { role: "tool", tool: { kind, status: "error", detail } });
+    }
+  };
 
   function patchMetrics(
     id: string,
@@ -261,7 +294,7 @@ export const useAgentRuntime = create<AgentRuntimeStore>((set, get) => {
             });
             updateLastTool(conversationId, {
               status: "done",
-              detail: "Plan ready — awaiting your approval.",
+              detail: "Plan ready, awaiting your approval.",
             });
             patchRun(conversationId, { running: false });
             return;
@@ -275,7 +308,7 @@ export const useAgentRuntime = create<AgentRuntimeStore>((set, get) => {
         if (Object.keys(produced).length === 0) {
           updateLastTool(conversationId, { status: "error", detail: "No files were produced." });
           patchRun(conversationId, {
-            error: "The agent didn't produce any files — try rephrasing your request.",
+            error: "The agent didn't produce any files, try rephrasing your request.",
           });
           failStep(conversationId, scaffoldKind, "No files were produced.");
           sawError = true;
@@ -313,7 +346,7 @@ export const useAgentRuntime = create<AgentRuntimeStore>((set, get) => {
           status: "done",
           detail: overwritten.length
             ? `Restored the protected Universal Account file (agent output for it was discarded).`
-            : "Universal Account file untouched — good.",
+            : "Universal Account file untouched, good.",
         });
 
         pushTimeline(conversationId, {
@@ -333,7 +366,7 @@ export const useAgentRuntime = create<AgentRuntimeStore>((set, get) => {
           patchMetrics(conversationId, (m) => ({ iterations: m.iterations + 1 }));
           if (fixAttempts >= MAX_FIX_ATTEMPTS) {
             patchRun(conversationId, {
-              error: `Gave up after ${MAX_FIX_ATTEMPTS} fix attempts — structural checks kept failing. See the diff for what exists so far.`,
+              error: `Gave up after ${MAX_FIX_ATTEMPTS} fix attempts, structural checks kept failing. See the diff for what exists so far.`,
               pendingFiles: workingFiles,
               pendingFindings: findings,
             });
@@ -384,7 +417,7 @@ export const useAgentRuntime = create<AgentRuntimeStore>((set, get) => {
           patchMetrics(conversationId, (m) => ({ iterations: m.iterations + 1 }));
           if (fixAttempts >= MAX_FIX_ATTEMPTS) {
             patchRun(conversationId, {
-              error: `Gave up after ${MAX_FIX_ATTEMPTS} fix attempts — the bundle kept failing to build: ${bundleError}`,
+              error: `Gave up after ${MAX_FIX_ATTEMPTS} fix attempts, the bundle kept failing to build: ${bundleError}`,
               pendingFiles: workingFiles,
               pendingFindings: findings,
             });
@@ -401,12 +434,12 @@ export const useAgentRuntime = create<AgentRuntimeStore>((set, get) => {
         }
 
         finishStep(conversationId, scaffoldKind, `${Object.keys(produced).length} file(s).`);
-        beginStep(conversationId, "deploy", "Ready — awaiting Apply.");
+        beginStep(conversationId, "deploy", "Ready, awaiting Apply.");
         patchMetrics(conversationId, (m) => ({ finishedAt: m.finishedAt ?? Date.now() }));
         patchRun(conversationId, { pendingFiles: workingFiles, pendingFindings: findings });
         pushTimeline(conversationId, {
           role: "assistant",
-          content: "Ready — review the diff below and click Apply.",
+          content: "Ready, review the diff below and click Apply.",
         });
         useConversations.getState().update(conversationId, { messages: internal.messages });
         patchRun(conversationId, { running: false });
@@ -508,7 +541,7 @@ export const useAgentRuntime = create<AgentRuntimeStore>((set, get) => {
         role: "user",
         content: "Approved — continue and write the files now, following the plan above.",
       });
-      pushTimeline(conversationId, { role: "user", content: "Approved — continuing." });
+      pushTimeline(conversationId, { role: "user", content: "Approved, continuing." });
       patchRun(conversationId, { running: true, error: null, streamingFiles: {} });
 
       await generateAndCheck(conversationId, cfg, { allowPlanPause: false });
@@ -547,7 +580,7 @@ export const useAgentRuntime = create<AgentRuntimeStore>((set, get) => {
         files: after,
         changelog: [entry, ...conv.changelog],
       });
-      patchStep(conversationId, "deploy", { status: "done", finishedAt: Date.now() });
+      finishStep(conversationId, "deploy", "Applied.");
       patchRun(conversationId, { pendingFiles: null, pendingFindings: [] });
     },
 

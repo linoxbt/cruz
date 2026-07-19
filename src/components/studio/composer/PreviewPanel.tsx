@@ -40,7 +40,7 @@ export function PreviewPanel({
   return (
     <div className="rounded-sm border border-border bg-surface p-4">
       <div className="font-mono text-xs uppercase tracking-wider text-meta">
-        Preview — no funds moved yet
+        Preview: no funds moved yet
       </div>
 
       <div className="mt-3 grid grid-cols-2 gap-3 font-mono text-xs">
@@ -76,7 +76,7 @@ export function PreviewPanel({
 
       {status === "done" && txId ? (
         <div className="mt-4 rounded-sm border border-success/40 bg-success/5 p-3 font-mono text-xs text-success">
-          Executed — transaction {txId}
+          Executed: transaction {txId}
         </div>
       ) : (
         <Button className="mt-4" onClick={onExecute} disabled={status === "executing"}>

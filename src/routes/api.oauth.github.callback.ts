@@ -27,7 +27,7 @@ export const Route = createFileRoute("/api/oauth/github/callback")({
         }) =>
           new Response(
             `<!doctype html><html><body style="font-family:monospace;background:#0b0f1a;color:#e5e7eb;display:flex;align-items:center;justify-content:center;height:100vh;margin:0">
-<p>${payload.ok ? "Connected — you can close this window." : `Failed: ${payload.message ?? "unknown error"}`}</p>
+<p>${payload.ok ? "Connected. You can close this window." : `Failed: ${payload.message ?? "unknown error"}`}</p>
 <script>
   if (window.opener) {
     window.opener.postMessage(${JSON.stringify({ type: "github-oauth-result", ...payload })}, window.location.origin);

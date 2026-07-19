@@ -36,11 +36,8 @@ External services, keys, and where to get them.
 
 ## Starter Scaffolder — delivery/deploy integrations
 
-- **GitHub**: a personal access token with repo-creation scope. Create one under GitHub → Settings
-  → Developer settings → Personal access tokens. Pasted directly into the Scaffolder UI at
-  generate-time — never stored, never sent anywhere except GitHub's API for that one request.
-- **Vercel**: an API token from Vercel → Account Settings → Tokens. Same handling as the GitHub
-  token: entered per-use, not persisted.
+- **GitHub**: a real OAuth connection, made once on the Settings page (`VITE_GITHUB_OAUTH_CLIENT_ID`
+  + `GITHUB_OAUTH_CLIENT_SECRET`, see below) — never a hand-pasted personal access token.
 - **Magic (optional)**: only needed if a generated starter app has the embedded-wallet toggle on.
   Publishable key from [dashboard.magic.link](https://dashboard.magic.link) — goes into the
   _generated project's_ own `.env`, not CRUZ's.
@@ -53,7 +50,7 @@ three-tier convention:
 | Tier                    | Example                                         | Where it lives                                                                                                                                                     |
 | ----------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Public (`VITE_*`)       | `VITE_PARTICLE_PROJECT_ID`, `VITE_ARBITRUM_RPC` | Inlined into the browser bundle at build time — safe for publishable IDs, not secrets                                                                              |
-| Server-only (no prefix) | _(none needed for CRUZ)_                        | Read only inside server functions; GitHub/Vercel tokens are user-supplied per-request instead of a server env var, since they're per-user, high-stakes credentials |
+| Server-only (no prefix) | `GITHUB_OAUTH_CLIENT_SECRET`                    | Read only inside server functions; never inlined into the client bundle |
 
 ## Reused infrastructure
 

@@ -13,13 +13,24 @@ import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ScaffolderRouteImport } from './routes/scaffolder'
 import { Route as ProjectsRouteImport } from './routes/projects'
 import { Route as InspectorRouteImport } from './routes/inspector'
+import { Route as ExplorerRouteImport } from './routes/explorer'
 import { Route as EditorRouteImport } from './routes/editor'
+import { Route as DocsRouteImport } from './routes/docs'
 import { Route as ComposerRouteImport } from './routes/composer'
 import { Route as CodeAiRouteImport } from './routes/code-ai'
 import { Route as BuilderRouteImport } from './routes/builder'
 import { Route as AppRouteImport } from './routes/app'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ExplorerIndexRouteImport } from './routes/explorer.index'
+import { Route as ExplorerTxnsRouteImport } from './routes/explorer.txns'
+import { Route as ExplorerTokensRouteImport } from './routes/explorer.tokens'
+import { Route as ExplorerStatsRouteImport } from './routes/explorer.stats'
+import { Route as ExplorerBlocksRouteImport } from './routes/explorer.blocks'
 import { Route as ApiAiRouteImport } from './routes/api.ai'
+import { Route as ExplorerTxHashRouteImport } from './routes/explorer.tx.$hash'
+import { Route as ExplorerTokenHashRouteImport } from './routes/explorer.token.$hash'
+import { Route as ExplorerBlockHeightRouteImport } from './routes/explorer.block.$height'
+import { Route as ExplorerAddressHashRouteImport } from './routes/explorer.address.$hash'
 import { Route as ApiOauthGithubCallbackRouteImport } from './routes/api.oauth.github.callback'
 
 const SettingsRoute = SettingsRouteImport.update({
@@ -42,9 +53,19 @@ const InspectorRoute = InspectorRouteImport.update({
   path: '/inspector',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ExplorerRoute = ExplorerRouteImport.update({
+  id: '/explorer',
+  path: '/explorer',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const EditorRoute = EditorRouteImport.update({
   id: '/editor',
   path: '/editor',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DocsRoute = DocsRouteImport.update({
+  id: '/docs',
+  path: '/docs',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ComposerRoute = ComposerRouteImport.update({
@@ -72,10 +93,55 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ExplorerIndexRoute = ExplorerIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ExplorerRoute,
+} as any)
+const ExplorerTxnsRoute = ExplorerTxnsRouteImport.update({
+  id: '/txns',
+  path: '/txns',
+  getParentRoute: () => ExplorerRoute,
+} as any)
+const ExplorerTokensRoute = ExplorerTokensRouteImport.update({
+  id: '/tokens',
+  path: '/tokens',
+  getParentRoute: () => ExplorerRoute,
+} as any)
+const ExplorerStatsRoute = ExplorerStatsRouteImport.update({
+  id: '/stats',
+  path: '/stats',
+  getParentRoute: () => ExplorerRoute,
+} as any)
+const ExplorerBlocksRoute = ExplorerBlocksRouteImport.update({
+  id: '/blocks',
+  path: '/blocks',
+  getParentRoute: () => ExplorerRoute,
+} as any)
 const ApiAiRoute = ApiAiRouteImport.update({
   id: '/api/ai',
   path: '/api/ai',
   getParentRoute: () => rootRouteImport,
+} as any)
+const ExplorerTxHashRoute = ExplorerTxHashRouteImport.update({
+  id: '/tx/$hash',
+  path: '/tx/$hash',
+  getParentRoute: () => ExplorerRoute,
+} as any)
+const ExplorerTokenHashRoute = ExplorerTokenHashRouteImport.update({
+  id: '/token/$hash',
+  path: '/token/$hash',
+  getParentRoute: () => ExplorerRoute,
+} as any)
+const ExplorerBlockHeightRoute = ExplorerBlockHeightRouteImport.update({
+  id: '/block/$height',
+  path: '/block/$height',
+  getParentRoute: () => ExplorerRoute,
+} as any)
+const ExplorerAddressHashRoute = ExplorerAddressHashRouteImport.update({
+  id: '/address/$hash',
+  path: '/address/$hash',
+  getParentRoute: () => ExplorerRoute,
 } as any)
 const ApiOauthGithubCallbackRoute = ApiOauthGithubCallbackRouteImport.update({
   id: '/api/oauth/github/callback',
@@ -89,12 +155,23 @@ export interface FileRoutesByFullPath {
   '/builder': typeof BuilderRoute
   '/code-ai': typeof CodeAiRoute
   '/composer': typeof ComposerRoute
+  '/docs': typeof DocsRoute
   '/editor': typeof EditorRoute
+  '/explorer': typeof ExplorerRouteWithChildren
   '/inspector': typeof InspectorRoute
   '/projects': typeof ProjectsRoute
   '/scaffolder': typeof ScaffolderRoute
   '/settings': typeof SettingsRoute
   '/api/ai': typeof ApiAiRoute
+  '/explorer/blocks': typeof ExplorerBlocksRoute
+  '/explorer/stats': typeof ExplorerStatsRoute
+  '/explorer/tokens': typeof ExplorerTokensRoute
+  '/explorer/txns': typeof ExplorerTxnsRoute
+  '/explorer/': typeof ExplorerIndexRoute
+  '/explorer/address/$hash': typeof ExplorerAddressHashRoute
+  '/explorer/block/$height': typeof ExplorerBlockHeightRoute
+  '/explorer/token/$hash': typeof ExplorerTokenHashRoute
+  '/explorer/tx/$hash': typeof ExplorerTxHashRoute
   '/api/oauth/github/callback': typeof ApiOauthGithubCallbackRoute
 }
 export interface FileRoutesByTo {
@@ -103,12 +180,22 @@ export interface FileRoutesByTo {
   '/builder': typeof BuilderRoute
   '/code-ai': typeof CodeAiRoute
   '/composer': typeof ComposerRoute
+  '/docs': typeof DocsRoute
   '/editor': typeof EditorRoute
   '/inspector': typeof InspectorRoute
   '/projects': typeof ProjectsRoute
   '/scaffolder': typeof ScaffolderRoute
   '/settings': typeof SettingsRoute
   '/api/ai': typeof ApiAiRoute
+  '/explorer/blocks': typeof ExplorerBlocksRoute
+  '/explorer/stats': typeof ExplorerStatsRoute
+  '/explorer/tokens': typeof ExplorerTokensRoute
+  '/explorer/txns': typeof ExplorerTxnsRoute
+  '/explorer': typeof ExplorerIndexRoute
+  '/explorer/address/$hash': typeof ExplorerAddressHashRoute
+  '/explorer/block/$height': typeof ExplorerBlockHeightRoute
+  '/explorer/token/$hash': typeof ExplorerTokenHashRoute
+  '/explorer/tx/$hash': typeof ExplorerTxHashRoute
   '/api/oauth/github/callback': typeof ApiOauthGithubCallbackRoute
 }
 export interface FileRoutesById {
@@ -118,12 +205,23 @@ export interface FileRoutesById {
   '/builder': typeof BuilderRoute
   '/code-ai': typeof CodeAiRoute
   '/composer': typeof ComposerRoute
+  '/docs': typeof DocsRoute
   '/editor': typeof EditorRoute
+  '/explorer': typeof ExplorerRouteWithChildren
   '/inspector': typeof InspectorRoute
   '/projects': typeof ProjectsRoute
   '/scaffolder': typeof ScaffolderRoute
   '/settings': typeof SettingsRoute
   '/api/ai': typeof ApiAiRoute
+  '/explorer/blocks': typeof ExplorerBlocksRoute
+  '/explorer/stats': typeof ExplorerStatsRoute
+  '/explorer/tokens': typeof ExplorerTokensRoute
+  '/explorer/txns': typeof ExplorerTxnsRoute
+  '/explorer/': typeof ExplorerIndexRoute
+  '/explorer/address/$hash': typeof ExplorerAddressHashRoute
+  '/explorer/block/$height': typeof ExplorerBlockHeightRoute
+  '/explorer/token/$hash': typeof ExplorerTokenHashRoute
+  '/explorer/tx/$hash': typeof ExplorerTxHashRoute
   '/api/oauth/github/callback': typeof ApiOauthGithubCallbackRoute
 }
 export interface FileRouteTypes {
@@ -134,12 +232,23 @@ export interface FileRouteTypes {
     | '/builder'
     | '/code-ai'
     | '/composer'
+    | '/docs'
     | '/editor'
+    | '/explorer'
     | '/inspector'
     | '/projects'
     | '/scaffolder'
     | '/settings'
     | '/api/ai'
+    | '/explorer/blocks'
+    | '/explorer/stats'
+    | '/explorer/tokens'
+    | '/explorer/txns'
+    | '/explorer/'
+    | '/explorer/address/$hash'
+    | '/explorer/block/$height'
+    | '/explorer/token/$hash'
+    | '/explorer/tx/$hash'
     | '/api/oauth/github/callback'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -148,12 +257,22 @@ export interface FileRouteTypes {
     | '/builder'
     | '/code-ai'
     | '/composer'
+    | '/docs'
     | '/editor'
     | '/inspector'
     | '/projects'
     | '/scaffolder'
     | '/settings'
     | '/api/ai'
+    | '/explorer/blocks'
+    | '/explorer/stats'
+    | '/explorer/tokens'
+    | '/explorer/txns'
+    | '/explorer'
+    | '/explorer/address/$hash'
+    | '/explorer/block/$height'
+    | '/explorer/token/$hash'
+    | '/explorer/tx/$hash'
     | '/api/oauth/github/callback'
   id:
     | '__root__'
@@ -162,12 +281,23 @@ export interface FileRouteTypes {
     | '/builder'
     | '/code-ai'
     | '/composer'
+    | '/docs'
     | '/editor'
+    | '/explorer'
     | '/inspector'
     | '/projects'
     | '/scaffolder'
     | '/settings'
     | '/api/ai'
+    | '/explorer/blocks'
+    | '/explorer/stats'
+    | '/explorer/tokens'
+    | '/explorer/txns'
+    | '/explorer/'
+    | '/explorer/address/$hash'
+    | '/explorer/block/$height'
+    | '/explorer/token/$hash'
+    | '/explorer/tx/$hash'
     | '/api/oauth/github/callback'
   fileRoutesById: FileRoutesById
 }
@@ -177,7 +307,9 @@ export interface RootRouteChildren {
   BuilderRoute: typeof BuilderRoute
   CodeAiRoute: typeof CodeAiRoute
   ComposerRoute: typeof ComposerRoute
+  DocsRoute: typeof DocsRoute
   EditorRoute: typeof EditorRoute
+  ExplorerRoute: typeof ExplorerRouteWithChildren
   InspectorRoute: typeof InspectorRoute
   ProjectsRoute: typeof ProjectsRoute
   ScaffolderRoute: typeof ScaffolderRoute
@@ -216,11 +348,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InspectorRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/explorer': {
+      id: '/explorer'
+      path: '/explorer'
+      fullPath: '/explorer'
+      preLoaderRoute: typeof ExplorerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/editor': {
       id: '/editor'
       path: '/editor'
       fullPath: '/editor'
       preLoaderRoute: typeof EditorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/docs': {
+      id: '/docs'
+      path: '/docs'
+      fullPath: '/docs'
+      preLoaderRoute: typeof DocsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/composer': {
@@ -258,12 +404,75 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/explorer/': {
+      id: '/explorer/'
+      path: '/'
+      fullPath: '/explorer/'
+      preLoaderRoute: typeof ExplorerIndexRouteImport
+      parentRoute: typeof ExplorerRoute
+    }
+    '/explorer/txns': {
+      id: '/explorer/txns'
+      path: '/txns'
+      fullPath: '/explorer/txns'
+      preLoaderRoute: typeof ExplorerTxnsRouteImport
+      parentRoute: typeof ExplorerRoute
+    }
+    '/explorer/tokens': {
+      id: '/explorer/tokens'
+      path: '/tokens'
+      fullPath: '/explorer/tokens'
+      preLoaderRoute: typeof ExplorerTokensRouteImport
+      parentRoute: typeof ExplorerRoute
+    }
+    '/explorer/stats': {
+      id: '/explorer/stats'
+      path: '/stats'
+      fullPath: '/explorer/stats'
+      preLoaderRoute: typeof ExplorerStatsRouteImport
+      parentRoute: typeof ExplorerRoute
+    }
+    '/explorer/blocks': {
+      id: '/explorer/blocks'
+      path: '/blocks'
+      fullPath: '/explorer/blocks'
+      preLoaderRoute: typeof ExplorerBlocksRouteImport
+      parentRoute: typeof ExplorerRoute
+    }
     '/api/ai': {
       id: '/api/ai'
       path: '/api/ai'
       fullPath: '/api/ai'
       preLoaderRoute: typeof ApiAiRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/explorer/tx/$hash': {
+      id: '/explorer/tx/$hash'
+      path: '/tx/$hash'
+      fullPath: '/explorer/tx/$hash'
+      preLoaderRoute: typeof ExplorerTxHashRouteImport
+      parentRoute: typeof ExplorerRoute
+    }
+    '/explorer/token/$hash': {
+      id: '/explorer/token/$hash'
+      path: '/token/$hash'
+      fullPath: '/explorer/token/$hash'
+      preLoaderRoute: typeof ExplorerTokenHashRouteImport
+      parentRoute: typeof ExplorerRoute
+    }
+    '/explorer/block/$height': {
+      id: '/explorer/block/$height'
+      path: '/block/$height'
+      fullPath: '/explorer/block/$height'
+      preLoaderRoute: typeof ExplorerBlockHeightRouteImport
+      parentRoute: typeof ExplorerRoute
+    }
+    '/explorer/address/$hash': {
+      id: '/explorer/address/$hash'
+      path: '/address/$hash'
+      fullPath: '/explorer/address/$hash'
+      preLoaderRoute: typeof ExplorerAddressHashRouteImport
+      parentRoute: typeof ExplorerRoute
     }
     '/api/oauth/github/callback': {
       id: '/api/oauth/github/callback'
@@ -275,13 +484,43 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface ExplorerRouteChildren {
+  ExplorerBlocksRoute: typeof ExplorerBlocksRoute
+  ExplorerStatsRoute: typeof ExplorerStatsRoute
+  ExplorerTokensRoute: typeof ExplorerTokensRoute
+  ExplorerTxnsRoute: typeof ExplorerTxnsRoute
+  ExplorerIndexRoute: typeof ExplorerIndexRoute
+  ExplorerAddressHashRoute: typeof ExplorerAddressHashRoute
+  ExplorerBlockHeightRoute: typeof ExplorerBlockHeightRoute
+  ExplorerTokenHashRoute: typeof ExplorerTokenHashRoute
+  ExplorerTxHashRoute: typeof ExplorerTxHashRoute
+}
+
+const ExplorerRouteChildren: ExplorerRouteChildren = {
+  ExplorerBlocksRoute: ExplorerBlocksRoute,
+  ExplorerStatsRoute: ExplorerStatsRoute,
+  ExplorerTokensRoute: ExplorerTokensRoute,
+  ExplorerTxnsRoute: ExplorerTxnsRoute,
+  ExplorerIndexRoute: ExplorerIndexRoute,
+  ExplorerAddressHashRoute: ExplorerAddressHashRoute,
+  ExplorerBlockHeightRoute: ExplorerBlockHeightRoute,
+  ExplorerTokenHashRoute: ExplorerTokenHashRoute,
+  ExplorerTxHashRoute: ExplorerTxHashRoute,
+}
+
+const ExplorerRouteWithChildren = ExplorerRoute._addFileChildren(
+  ExplorerRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRoute,
   BuilderRoute: BuilderRoute,
   CodeAiRoute: CodeAiRoute,
   ComposerRoute: ComposerRoute,
+  DocsRoute: DocsRoute,
   EditorRoute: EditorRoute,
+  ExplorerRoute: ExplorerRouteWithChildren,
   InspectorRoute: InspectorRoute,
   ProjectsRoute: ProjectsRoute,
   ScaffolderRoute: ScaffolderRoute,

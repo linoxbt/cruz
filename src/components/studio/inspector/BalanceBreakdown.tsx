@@ -8,7 +8,7 @@ export function BalanceBreakdown({ address }: { address: string | undefined }) {
   if (!isParticleConfigured()) {
     return (
       <div className="rounded-sm border border-border bg-surface p-4 font-mono text-xs text-muted-foreground">
-        Particle Network isn&apos;t configured — set{" "}
+        Particle Network isn&apos;t configured, set{" "}
         <code className="text-foreground">VITE_PARTICLE_PROJECT_ID</code>,{" "}
         <code className="text-foreground">VITE_PARTICLE_CLIENT_KEY</code>, and{" "}
         <code className="text-foreground">VITE_PARTICLE_APP_ID</code>. See STUDIO_REQUIREMENTS.md.

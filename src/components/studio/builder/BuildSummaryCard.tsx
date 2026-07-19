@@ -20,7 +20,7 @@ export function BuildSummaryCard({ metrics }: { metrics: BuildMetrics }) {
     {
       icon: Clock,
       label: "Time to build",
-      value: elapsed !== null ? formatElapsed(elapsed) : "—",
+      value: elapsed !== null ? formatElapsed(elapsed) : "-",
     },
     {
       icon: RefreshCw,
@@ -30,7 +30,7 @@ export function BuildSummaryCard({ metrics }: { metrics: BuildMetrics }) {
     {
       icon: TestTube2,
       label: "Build check",
-      value: metrics.testsRun > 0 ? `${metrics.testsPassed}/${metrics.testsRun} passed` : "—",
+      value: metrics.testsRun > 0 ? `${metrics.testsPassed}/${metrics.testsRun} passed` : "-",
     },
     {
       icon: ShieldAlert,

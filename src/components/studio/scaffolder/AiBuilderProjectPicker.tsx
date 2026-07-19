@@ -16,7 +16,7 @@ function relativeTime(ms: number): string {
 
 /** Lets the Scaffolder pull files straight from something already built in
  *  the AI Builder, instead of only the fixed unified-wallet template — the
- *  same GitHub/Vercel/Netlify delivery in ResultPanel.tsx just gets fed a
+ *  same GitHub delivery in ResultPanel.tsx just gets fed a
  *  different file set. Only conversations with at least one applied file are
  *  listed (a conversation that's mid-review or hasn't produced anything
  *  isn't "built" yet). */

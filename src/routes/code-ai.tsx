@@ -8,7 +8,7 @@ import { AiChat } from "@/components/editor/AiChat";
 // history (editorChatStore.ts) with the editor panel, so a conversation
 // started here picks up right where it left off there, and vice versa.
 export const Route = createFileRoute("/code-ai")({
-  head: () => ({ meta: [{ title: "Code with AI — CRUZ" }] }),
+  head: () => ({ meta: [{ title: "Code with AI | CRUZ" }] }),
   component: CodeWithAiPage,
 });
 

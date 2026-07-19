@@ -63,7 +63,7 @@ function persist(sessions: ChatSession[], activeId: string | null) {
     if (!warnedAboutPersistFailure) {
       warnedAboutPersistFailure = true;
       toast.warning(
-        "Chat history isn't saving (storage is full) — this conversation won't persist.",
+        "Chat history isn't saving (storage is full), this conversation won't persist.",
       );
     }
   }

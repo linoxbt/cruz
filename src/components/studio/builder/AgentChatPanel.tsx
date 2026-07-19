@@ -29,6 +29,12 @@ const STEP_LABELS: Record<ToolStep["kind"], string> = {
   "protected-file-check": "Checking protected files",
   "structural-check": "Structural check",
   "inspect-url": "Looking at reference site",
+  spec: "Analyzing the request",
+  scaffold: "Scaffolding files",
+  implement: "Implementing changes",
+  test: "Verifying it builds",
+  deploy: "Ready to deploy",
+  monitor: "Monitoring",
 };
 
 function ToolStepRow({ step }: { step: ToolStep }) {
@@ -121,7 +127,7 @@ export function AgentChatPanel({
       <div ref={scrollRef} className="flex-1 space-y-2 overflow-y-auto p-3">
         {timeline.length === 0 && (
           <p className="font-mono text-xs text-meta">
-            Describe the app you want CRUZ&apos;s AI Builder to build — e.g. &quot;a unified-balance
+            Describe the app you want CRUZ&apos;s AI Builder to build, e.g. &quot;a unified-balance
             dashboard with a dark mode toggle and a tip-jar demo contract.&quot;
           </p>
         )}
@@ -161,7 +167,7 @@ export function AgentChatPanel({
           <input
             value={inspirationUrl}
             onChange={(e) => setInspirationUrl(e.target.value)}
-            placeholder="https://example.com — a site to reference for style/structure"
+            placeholder="https://example.com, a site to reference for style/structure"
             disabled={disabled}
             className="mb-1.5 w-full rounded-sm border border-border bg-background px-2.5 py-1 font-mono text-[11px] text-foreground placeholder:text-meta focus:outline-none disabled:opacity-50"
           />

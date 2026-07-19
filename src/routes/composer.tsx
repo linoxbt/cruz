@@ -8,7 +8,7 @@ import { ExportCodePanel } from "@/components/studio/composer/ExportCodePanel";
 import { RecentTransactions } from "@/components/studio/composer/RecentTransactions";
 
 export const Route = createFileRoute("/composer")({
-  head: () => ({ meta: [{ title: "Transaction Composer — CRUZ" }] }),
+  head: () => ({ meta: [{ title: "Transaction Composer | CRUZ" }] }),
   component: ComposerPage,
 });
 
@@ -34,7 +34,7 @@ function ComposerPage() {
       <div className="space-y-6 p-6">
         {!canCompose && (
           <p className="font-mono text-xs text-warning">
-            Previewing and executing need a connected CRUZ wallet (Magic) — same requirement as the
+            Previewing and executing need a connected CRUZ wallet (Magic), same requirement as the
             Account Inspector's upgrade flow. You can still fill out a transaction and export it as
             a snippet without connecting.
           </p>
