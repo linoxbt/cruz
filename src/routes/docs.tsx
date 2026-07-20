@@ -154,9 +154,9 @@ function HowItWorks() {
       <p className="text-sm leading-relaxed text-foreground/80">
         The AI Builder and Contract Editor are separate, self-contained tools layered on top: the
         Builder is an autonomous coding agent that plans, writes, tests, and iterates on a full app
-        in a persistent, resumable task list; the Editor compiles and deploys Solidity contracts
-        directly to Arbitrum One. Both read and write through the same wallet and chain as
-        everything else in CRUZ.
+        in a persistent, resumable task list, with a live file tree, diff review, and a real
+        sandboxed preview; the Editor compiles and deploys Solidity contracts directly to Arbitrum
+        One. Both read and write through the same wallet and chain as everything else in CRUZ.
       </p>
     </section>
   );
@@ -211,7 +211,7 @@ const FAQ_ITEMS = [
   },
   {
     q: "Does the AI Builder deploy code automatically?",
-    a: "In Auto mode it moves through spec, scaffold, implement, test, and deploy on its own once you approve the plan, pausing only for security-relevant findings. Manual mode adds one more pause after the plan for your explicit go-ahead. Either way, nothing reaches a real repo, host, or chain without a review step you can see.",
+    a: "No. The AI Builder plans, writes, tests, and iterates on a full app, but nothing reaches a real repo, host, or chain without a review step you can see, it pauses for your approval and for any security-relevant findings before applying changes. Each connected wallet gets five free prompts; after that, generation is pay-as-you-build, where you see an estimated cost and approve spending before any funds move.",
   },
 ];
 
